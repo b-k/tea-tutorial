@@ -38,9 +38,9 @@ define_blind(Pic, <|\begin{figure}[htb]
 \end{figure}
 |>)
 
-define_blind(Section, <|\section{$*}|>)
-define_blind(Subsection, <|\subsection{$*}|>)
-define_blind(Paragraph, <|\paragraph{$*}|>)
+define_blind(Section, <|\section{$1}<||>m4_ifelse($2,<||>,<||>,<|\label{$2}|>)|>)
+define_blind(Subsection, <|\subsection{$1}<||>m4_ifelse($2,<||>,<||>,<|\label{$2}|>)|>)
+define_blind(Paragraph, <|\paragraph{$1}<||>m4_ifelse($2,<||>,<||>,<|\label{$2}|>)|>)
 define_blind(Link, <|\link{m4_shift($*)}{$1}|>)
 
 define_ref(PRef, <|$1 (page \pageref{m4_translit(<|$2|>, ' 	
@@ -57,6 +57,8 @@ define_blind(SpecCode, <|\begin{lstlisting}[language=]
 $1
 \end{lstlisting}
 |>)
+
+define_blind(InSpec, <| \begin{figure}\hrule\lstinputlisting{$1}\hrule\end{figure} |>)
 
 define_blind(Items,
 <|\begin{itemize}

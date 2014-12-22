@@ -18,12 +18,9 @@ define_blind(sc, <|<sc>$*</sc>|>)
 define_blind(bf, <|<b>$*</b>|>)
 define_blind(em, <|<em>$*</em>|>)
 
-define_blind(Chapter, <|<h1>$*</h1><p>|>)
-define_blind(Section, <|<h2>$*</h2><p>|>)
-define_blind(Subsection, <|<h3>$*</h3><p>|>)
-define_blind(Paragraph, <|<h6>$*</h6><p>|>)
-define_blind(Code, <|<pre><code>$*</code></pre>|>)
-define_blind(Verbatim, <|<pre><code>$*</code></pre>|>)
+define_blind(Section, <|m4_ifelse($2,<||>,<||>,<|<a name="$2">|>)<h2>$1</h2>m4_ifelse($2,<||>,<||>,<|</a>|>)<p>|>)
+define_blind(Subsection, <|m4_ifelse($2,<||>,<||>,<|<a name="$2">|>)<h3>$1</h3>m4_ifelse($2,<||>,<||>,<|</a>|>)<p>|>)
+define_blind(Paragraph, <|m4_ifelse($2,<||>,<||>,<|<a name="$2">|>)<h6>$1</h6>m4_ifelse($2,<||>,<||>,<|</a>|>)<p>|>)
 define_blind(Block, <|<blockquote><p>$*</blockquote>|>)
 
 define_blind(PRef, <|<a href="#<||>m4_translit(<|$2|>, ' 	
@@ -34,14 +31,22 @@ define_blind(Ref, <|<a href="#<||>m4_translit(<|$2|>, '
 define_blind(Citet, <|<a href="#$1">$2</a>|>)
 define_blind(Citep, <|(<a href="#$1">$1<||>m4_ifelse($2,<||>,<||>,<|, $2|>)</a>)|>)
 
-define_blind(RCode, <|<pre><code>
-$1
-</code></pre>
+define_blind(RCode, <|<div class="rcode"><pre><code>$1</code></pre></div>
 |>)
 
-define_blind(SpecCode, <|<pre><code>
-$1
-</code></pre>
+define_blind(SpecCode, <|<div class="spec"><pre><code>$1</code></pre></div>
+|>)
+
+define_blind(InR, <|<div class="rcode"><pre><code># $1.R
+
+m4_include(../$1<||>.R)
+</code></pre></div>
+|>)
+
+define_blind(InSpec, <|<div class="spec"><pre><code># $1.spec
+
+m4_include(../$1<||>.spec)
+</code></pre></div>
 |>)
 
 

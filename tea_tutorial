@@ -11,21 +11,54 @@ that is user-friendly, effectively handles Census-sized data sets, and processes
 quickly even with relatively sophisticated methods.
 
 This document is a detailed overview of the Tea system, its components, and their usage.
-Section Ref(basicssec) is an overview of the basic mechanics of the system, including the
+Section Ref(Basics~~basicssec) is an overview of the basic mechanics of the system, including the
 underlying platforms and the format of the spec file used to describe a survey.
 Because Tea uses R as a front-end, Section Ref(rsec) gives a brief overview of using R
 for the purposes of querying, subsetting, and summarizing tables.
-Section Ref(impsec) goes into greater detail on the workings of the imputation system,
+Section Ref(Imputation~~impsec) goes into greater detail on the workings of the imputation system,
 including its basic procedure, the specific models available, and the use of multiple imputation.
 
-In the same repository as this tutorial,
-you will find a sample directory including tt(demo.spec, demo.R), and tt(dc\_pums\_08.CSV). 
-All of the steps described below are already implemented and running,
-though the system will evolve and grow as it is applied in new surveys and environments.
+In the same repository as this tutorial, you will find a sample directory including
+tt(demo.spec, demo.R), and tt(dc_pums_08.CSV). All of the steps described below
+are already implemented and running, though the system will evolve and grow as it is
+applied in new surveys and environments.
+
+Tea implements a two step process for addressing issues with raw data. The first is to
+identify failures---missing data, logical errors, or sensitive
+information---and then, having identified problem data, impute new values
+to replace the old ones. Although the term em(imputation) is typically used only to 
+describe filling in missing data, we use it broadly to mean any modification of a 
+data item that involves choosing among alternatives, regardless of which of the 
+above failures prompted the fill-in. 
+
+Paragraph(Installing Tea) The interface for Tea is an R package, but depends on several
+C libraries.
+That means that installation is not as trivial as typical R packages, but we found
+the large-scale processing we had to do to be largely impossible when staying exclusively
+within ecosystem of things installable via tt(install.package).
+
+If you are set up to use virtual machines, check out the
+Link(https://github.com/GovReady/govready-Tea~~GovReady Tea machine).
+
+Installation is easiest on a system with a package management system.
+Package managers give you immediate access to thousands of programs, libraries,
+language compilers, games, and everything else a computer can do. Linux users
+know their package manager; Mac users can use Link(http://macports.org~~MacPorts)
+or Link(http://finkproject.org~~Fink); Windows users can use
+Link(http://cygwin.com~~Cygwin).
+
+Once you have the basic platform set up,
+
+Items(
+∙ Install the Link(http://apophenia.info/setup.html~~Apophenia library)
+∙ Install the R-Apophenia link, Link(https://github.com/b-k/Rapophenia~~Rapophenia)
+∙ Install Link(https://github.com/rodri363/tea~~Tea)
+)
+
 
 Paragraph(Citing Tea) To date, the only formal publication describing Tea is a UN
-proceedings paper Citep(klemens:tea), so it is probably the best option when citing tea in an academic
-paper:
+proceedings paper Citep(klemens:tea), so until we get out more publications it is may
+be the best option when citing Tea in an academic paper:
 
 SpecCode(
 @inproceedings{klemens:tea,
@@ -45,40 +78,110 @@ SpecCode(
 }
 )
 
-Section(System basics)\label{basicssec}
-Tea implements a two step process for addressing issues with raw data. The first is to
-identify those failures listed above (missing data, logical errors, or sensitive
-information), and then, having identified problem data, impute new values
-to replace the old ones. Although the term {\em imputation} is typically used only to 
-describe filling in missing data, we use it broadly to mean any modification of a 
-data item that involves choosing among alternatives, regardless of which of the 
-above failures prompted the fill-in. 
 
-The specification of process details is a plain text file, herein called the {\em
-spec file}. Based on your inputs to the spec file (which we will explain later as
-to what those inputs can be), you then run a script in a user-friendly statistical
-computing framework called bf(R). This is where the computing (editing, imputation,
-etc) takes place. We will explain this in more detail later as well. For now, let's
-look closer at the spec file:
+Section(System basics~~basicssec)
 
-Subsection(The spec file)\label{specsec}
+The specification of process details is a plain text file, herein called the em(spec
+file). Based on your inputs to the spec file (which we will explain later as to what
+those inputs can be), you then run a script in a user-friendly statistical computing
+framework called bf(R). This is where the computing (editing, imputation, etc) takes
+place. We will explain this in more detail later as well. For now, let's look closer
+at the spec file:
+
+
+Subsection(The spec file~~specsec)
 The full specification of the various steps of Tea's process, from input of data to final
-production of output tables, is specified in a single file, the {\em spec file}. There
+production of output tables, is specified in a single file, the em(spec file). There
 are several benefits to such a work flow.  First, because the spec file is separate from
 programming languages like R or SAS, it is a simpler grammar that is easier to
 write, and analysts whose areas of expertise are not in programming can customize Tea
 and write technical specifications without the assistance of a programmer or 
-training in a new programming language. Consider the following script that is taken
-from the tt(demo.spec) file (which you can open using Kate or any other text editor):
+training in a new programming language.
+
+Throughout this tutorial, code snippets that have a file name can be found in the 
+tutorial repository. Being plain text, you can open and edit them using Kate or any
+other text editor. From that directory, you can cut/paste the R sample code onto the R
+command prompt, or run the program using R's the tt(source) command, e.g.:
+
+RCode(
+source("hello.R")
+)
+
+
+Paragraph(Hello)
+
+Our first example will load in a data set and do some simple queries, without yet
+doing any editing or imputation. Here is the spec file:
+
+InSpec(hello)
+
+Almost everything in the spec file will consist of key:value pairs, which may be
+organized into groups (and subgroups).
+
+The first non-comment, non-blank line of every spec file needs
+to specify a database; more on this requirement in Ref(Subkeys~~subkeys). This will be a
+file generated on disk (or opened, if it already exists), using the SQLite database library. The name doesn't have to
+end in tt(.db), but we recommend sticking to that custom. If you are an SQLite expert,
+you can view or modify this database using any SQLite tools.
+
+Unless you already have data in an SQLite database, all inputs are via plain text,
+typically called comma-separated values, though the delimiter can be set to almost
+anything (we prefer pipes, $|$ ). This segment of the spec gives the name of the input
+file, and the name of the table that will be generated from that input.
+
+We also added a section describing two of the fields: tt(age) is a real number, and
+tt(schl) is an integer from 1 to 24. Not all fields have to be specified, but it helps to
+guarantee that SQLite doesn't treat the entries as text, and will be required when we get
+to editing.
+
+The spec file does nothing by itself, so let us move on to tt(hello.R):
+
+InR(hello)
+
+The first line, tt(library(tea)) loads Tea, and the second, tt(readSpec("hello.spec"))
+reads the spec file. At this point, the database is open, and Tea knows about all of
+the configuration options in the spec file. Thus, the next line, tt(doInput()) 
+does not need input arguments specifying the name of the text file or other details—that
+can all be read off from the spec.
+
+After tt(doInput()) runs, the requested table, tt(dc), exists in the database. The
+tt(teaTable()) function pulls data from the database. In the example above, the first
+use of tt(teaTable) prints to the screen, so we limit the number of columns to pull to 20,
+and requests only three columns.
+
+The second example uses R's tt(summary()) function to show the means and medians of the
+age and schooling categories.
+
+
+Paragraph(Subkeys~~subkeys)
+Why does the first line of the spec file have to be a database? Because the first step in
+processing is to convert the spec file into a database table. The table is named tt(keys),
+and you can view it like any other:
+
+RCode(
+teaTable("keys")
+
+                 key   tag count          value
+1           database 0 tag     1        test.db
+2   input/input file 1 tag     2 dc_pums_08.csv
+3 input/output table 1 tag     3             dc
+)
+
+The tt(fields) and tt(checks) sections do not get encoded into this table, but every other
+key:value pair will get one row. Comparing this table to tt(hello.spec) shows how the
+keys embedded in a group are written via a group/key notation. So when you see
+tt(input/input file), this would have appeared in the spec as 
 
 SpecCode(
-database: test.db
-
 input {
-        input file: dc_pums_08.CSV
-        output table: dc
+    input file: ...
 }
 )
+
+That said, here is an Link(http://rodri363.github.io/tea/keys.html~~alphabetical list of Tea keys).
+
+
+Comment(
 
 In this snippet of the tt(demo.spec) file, we specified a database to use, an input
 file to be parsed, and an output table to write our imputations to. Behind the scenes,
@@ -689,14 +792,14 @@ group recodes {
 Subsection(Checks)
 The consistency-checking system is rather complex, but this complexity is what makes
 the system efficient and reliable: there are typically a few dozen to a few hundred
-checks that every observation must pass, from sanity checks like {\em fail if age < 0}
-to real-world constraints like {\em fail if age < 16 and status='married'}. Further,
+checks that every observation must pass, from sanity checks like em(fail if age < 0)
+to real-world constraints like em(fail if age < 16 and status='married'). Further,
 every time a change is made (such as by the imputation system) we need to re-check that
 the new value does not fail checks. For example, an OLS imputation of age could easily
 generate negative age values, so the consistency checks are essential for verifying that
 the imputation process is giving us accurate and usable data points. In addition to
 error checking we can also use consistency checks for other purposes, such as setting
-{\em structural zeros} for the raking procedure.
+em(structural zeros) for the raking procedure.
 
 All of the checks that are to be performed are specified in the tt(checks) key. 
 The checks you specify here will be performed on all input variables, as well as on all 
@@ -800,9 +903,9 @@ that will be crossed together. With tt(combinations: 3), every set of three
 variables in the list will be tried. The tt(frequency) variable indicates that
 cells with two or fewer observations will be marked.
 
-We are calling this specific form of disclosure avoidance {\em fingerprinting}, so after
-this segment of the spec file is in place, call {\em doFingerprinting()} from R to run the
-procedure. The output is currently in a database table named {\em vflags}.
+We are calling this specific form of disclosure avoidance em(fingerprinting), so after
+this segment of the spec file is in place, call em(doFingerprinting()) from R to run the
+procedure. The output is currently in a database table named em(vflags).
 
 SpecCode(
 fingerprint {
@@ -878,7 +981,7 @@ a wealth of models by which a missing value can be filled in using the data in t
 
 Paragraph(Universes)
 The various models described above are typically fit not for the whole data set, but for
-smaller {\em universes}, such as a single county, or all males in a given age group.
+smaller em(universes), such as a single county, or all males in a given age group.
 A universe definition is an assertion that the variable set for the records in the
 universe was generated in a different manner than the variables for other universes.
 
@@ -967,7 +1070,7 @@ Tea in greater detail.
 
 Paragraph(Hot deck) This is randomized hot deck. Missing values are filled in by
 drawing from nonmissing values in the same subset. The assumption underlying the model
-is {\em missing completely at random} (MCAR), basically meaning that nonrespondents
+is em(missing completely at random) (MCAR), basically meaning that nonrespondents
 do not differ in a systematic way from respondents.
 
 This model has no additional keys or options, although the user will probably want an
@@ -1019,10 +1122,10 @@ of variable may be rounded to an integer.
 If a dependent variable is numeric, list it with a \#, such as {\tt variables:
 \#age, sex}.
 
-An {\em interaction} term is the product of the variables, where for categories {\em
+An em(interaction) term is the product of the variables, where for categories {\em
 product} means the smaller subsets generated by the cross of the two variables, such as
 a sex-age cross of $(M, 0--18), (F, 0--18), (M, 18--35), (F, 18--35)$; for continuous
-variables {\em product} has its typical meaning.
+variables em(product) has its typical meaning.
 }
 
 \cmt{
@@ -1075,7 +1178,7 @@ Hot deck is actually a fitting of the Multinomial distribution, in which each bi
 elements in proportion to that observed in the data; tt(method: hot deck) and {\tt
 method: multinomial} are synonyms.
 
-The {\em method: multivariate normal} doesn't work yet.
+The em(method: multivariate normal) doesn't work yet.
 
 The distribution models have no additional options or keys.
 
@@ -1100,7 +1203,7 @@ records in need of confidentiality protection. Such a method has already been ap
 group quarters records in the American Community Survey for collection years 2006--2009.
 
 Section(Weighting)
-We use the {\em survey} package for R to calculate and modify weights for a
+We use the em(survey) package for R to calculate and modify weights for a
 survey. The package is fully documented in \citet{lumley:surveys}.
 
 Section(Models and Universes)
@@ -1355,7 +1458,10 @@ Keys are listed using the tt(group/key/value) notation described in Section Ref(
 
 %\input ../keys.tex
 
-%\bibliographystyle{harvard}
+
+)
+
+
 \bibliographystyle{plainnat}
 \bibliography{tea}
 \end{document}
