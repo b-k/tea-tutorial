@@ -34,6 +34,17 @@ define_blind(Ref, <|<a href="#<||>m4_translit(<|$2|>, '
 define_blind(Citet, <|<a href="#$1">$2</a>|>)
 define_blind(Citep, <|(<a href="#$1">$1<||>m4_ifelse($2,<||>,<||>,<|, $2|>)</a>)|>)
 
+define_blind(RCode, <|<pre><code>
+$1
+</code></pre>
+|>)
+
+define_blind(SpecCode, <|<pre><code>
+$1
+</code></pre>
+|>)
+
+
 define_blind(Link, <|<a href="$1">m4_shift($*)</a>|>)
 
 Produces a <ul></li> that has to be cut down by sed to <ul>

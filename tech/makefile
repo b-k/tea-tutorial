@@ -23,7 +23,7 @@ html:
 	cd bib&&make
 	echo "<h2>Bibliography</h2>" > out/xxx
 	cat head.html out/tea_tutorial.html out/xxx  bib/bibshell.html tail.html > $(HTMLout)/index.html
-	cp typical.css $(HTMLout)
+	cp tutorial.css $(HTMLout)
 
 push:
 	cd $(HTMLout) && git commit -a -m "Another update." && git push origin gh-pages
