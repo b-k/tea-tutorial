@@ -26,18 +26,10 @@ define_blind(Code, <|<pre><code>$*</code></pre>|>)
 define_blind(Verbatim, <|<pre><code>$*</code></pre>|>)
 define_blind(Block, <|<blockquote><p>$*</blockquote>|>)
 
+define_blind(PRef, <|<a href="#<||>m4_translit(<|$2|>, ' 	
+')">$1</a>|>)
 define_blind(Ref, <|<a href="#<||>m4_translit(<|$2|>, ' 	
 ')">$1</a>|>)
-
-define_blind(N2D, <|<div class="h2d"><a name="<||>m4_translit(<|$2|>, ' 	
-')"></a>Paragraph($1)
-        
-<em>Narrative</em>: $3
-
-<em>Distribution</em>: $4
-
-m4_ifelse(<|$5|>, <||>,,<|<em>Notes</em>: $5|>)
-</div>|>)
 
 define_blind(Citet, <|<a href="#$1">$2</a>|>)
 define_blind(Citep, <|(<a href="#$1">$1<||>m4_ifelse($2,<||>,<||>,<|, $2|>)</a>)|>)
