@@ -58,7 +58,8 @@ $1
 \end{lstlisting}
 |>)
 
-define_blind(InSpec, <| \begin{figure}\hrule\lstinputlisting{$1}\hrule\end{figure} |>)
+define_blind(InSpec, <| \begin{figure}\hrule\lstinputlisting{../../$1<||>.spec}\hrule\end{figure} |>)
+define_blind(InR, <| \begin{figure}\hrule\vskip.1mm\hrule\lstinputlisting{../../$1<||>.R}\hrule\vskip.1mm\hrule\end{figure} |>)
 
 define_blind(Items,
 <|\begin{itemize}
@@ -68,6 +69,12 @@ define_blind(Items,
 m4_patsubst(<|$@|>, <|∙|>, <|\\item |>)\end{itemize}|>)
 
 Here comes the LaTeX header. It is cut/pasted/modified from another document, where it was cut/pasted/modified from another document, ..., meaning that it has a lot that could be excised.
+
+First the ending, stored in m4 buffer 9, then we return to buffer 0 to start from the beginning.
+m4_divert(9)
+\bibliographystyle{plainnat}
+\bibliography{tea}
+\end{document}
 m4_divert(0)
 
 \documentclass{article}
@@ -126,6 +133,7 @@ m4_divert(0)
 \usepackage{setspace}
 \usepackage{verbatim}
 
+\def\link#1#2{#1\footnote{\url{#2}}}
 
 %I think the Computer Modern teletype is too wide.
 \usepackage[T1]{fontenc}
@@ -143,20 +151,6 @@ m4_divert(0)
   \setlength{\parindent}{0pt} %
   \setlength{\parsep}{3pt} %
 }{}
-
-\newenvironment{specbit}{\latexhtml{}{\begin{rawhtml}
-<div class="spec">
-\end{rawhtml}}}
-{\latexhtml{}{\begin{rawhtml}
-</div>
-\end{rawhtml}}}
-
-\newenvironment{rcode}{\latexhtml{}{\begin{rawhtml}
-<div class="rcode">
-\end{rawhtml}}}
-{\latexhtml{}{\begin{rawhtml}
-</div>
-\end{rawhtml}}}
 
 \begin{document}
 \title{Tea for survey processing: a tutorial}
