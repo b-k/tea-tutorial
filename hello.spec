@@ -3,6 +3,7 @@ database: test.db
 input {
     input file: dc_pums_08.csv
     output table: dc
+    overwrite: yes
 }
 
 fields {

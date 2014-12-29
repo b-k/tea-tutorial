@@ -5,7 +5,18 @@ Tea is a statistical library designed to eradicate these errors via a framework
 that is user-friendly, effectively handles Census-sized data sets, and processes
 quickly even with relatively sophisticated methods.
 
+Tea implements a two step process for addressing issues with raw data. The first is to
+identify failures---missing data, logical errors, or sensitive
+information---and then, having identified problem data, impute new values
+to replace the old ones. Although the term em(imputation) is typically used only to 
+describe filling in missing data, we use it broadly to mean any modification of a 
+data item that involves choosing among alternatives, regardless of which of the 
+above failures prompted the fill-in. 
+
 This document is a detailed overview of the Tea system, its components, and their usage.
+
+HTML(You can also read Link(http://klemens.org/pdfs/tea-tutorial.pdf~~this tutorial as a PDF).)
+TeX(You can also read this tutorial in your browser at \url{http://b-k.github.io/tea-tutorial/}.)
 
 Items(
 ∙ TeX(Section) Ref(Basics~~basicssec) is an overview of the basic mechanics of the system,
@@ -18,9 +29,8 @@ Comment(
     tables. )
 
     ∙ TeX(Section) Ref(Recodes~~recodesec) 
-    describes Tea's syntax for generating new variables based on other variables, like log
-    of income calculated from income, or tt(is_heterosexual_marriage) calculated from the
-    sex of the spouses.
+    describes Tea's syntax for generating new variables based on other variables, 
+like tt(is_heterosexual_marriage) calculated from the sex of the spouses, or log of income calculated from income.
 
 
     ∙ TeX(Section) Ref(Imputation~~impsec)
@@ -30,10 +40,10 @@ Comment(
     ∙ TeX(Section) Ref(Editing~~editsec) describes em(editing), the process
     of finding elements that fail validity checks.
 
-    ∙ TeX(Section) Ref(Synthetic~~synthsec) describes Tea's mechanism for generating
-    synthetic microdata that generates marginal values identical to the source data. This is
-    useful for running bootstrap-style tests and protecting the identities of individual
-    respondents.
+    ∙ TeX(Section) Ref(Synthetic microdata~~synthsec) describes Tea's mechanism
+    for generating synthetic microdata with marginal values identical to the source
+    data. This is useful for running bootstrap-style tests and protecting the identities
+    of individual respondents.
 
     ∙ TeX(Section) Ref(DA~~dasec) describes a table-based method of finding respondents at
     risk of being identifiable, and blanking out portions of their information so an imputed
@@ -44,13 +54,6 @@ bf(This tutorial is a work in progress.) Tea has an open development model, wher
 have been able to download versions almost since its inception. We follow the same process
 here, posting the draft as we write it, and adding more every week.
 
-Tea implements a two step process for addressing issues with raw data. The first is to
-identify failures---missing data, logical errors, or sensitive
-information---and then, having identified problem data, impute new values
-to replace the old ones. Although the term em(imputation) is typically used only to 
-describe filling in missing data, we use it broadly to mean any modification of a 
-data item that involves choosing among alternatives, regardless of which of the 
-above failures prompted the fill-in. 
 
 Paragraph(Installing Tea) The interface for Tea is an R package, but depends on several
 C libraries.
@@ -159,6 +162,11 @@ disk (or opened, if it already exists), using the SQLite database library. The n
 doesn't have to end in tt(.db), but we recommend sticking to that custom. If you are
 an SQLite expert, you can view or modify this database using your favorite SQLite tools.
 
+This spec file tells Tea to overwrite the tt(dc) table if it already exists. This can be
+useful for running an analysis from start to finish, but in most cases, the read-in is
+time-consuming and most later operations will not modify the source data, so the default
+if the input segment has no tt(overwrite) key is to assume tt(overwrite: no).
+
 Unless you already have data in an SQLite database, all inputs are via plain text,
 typically called CSV files (for comma-separated values), though the delimiter can be set to almost
 anything; we prefer pipes, $|$ . The tt(input) segment of the spec gives the name of the input
@@ -207,6 +215,8 @@ teaTable("keys")
 3 input/output table 1 tag     3             dc
 )
 
+The format of the tt(keys) table is subject to change, so please do not rely on it for
+processing. However, it can be useful to check that the parser did what you expected.
 The tt(fields) and tt(checks) sections do not get encoded into this table, but every other
 key:value pair will get one row. Comparing this table to tt(hello.spec) shows how the
 keys embedded in a group are written via a group/key notation. So when you see
@@ -218,7 +228,7 @@ input {
 }
 )
 
-That said, here is an Link(http://rodri363.github.io/tea/keys.html~~alphabetical list of Tea keys).
+That said, here is an Link(http://rodri363.github.io/tea/keys.html~~alphabetical list of all Tea keys).
 
 
 
@@ -231,7 +241,72 @@ referring to a complex expression several times, it might be best to define a va
 based on that expression. It is easy to use a recode to define sets of observations
 that can then be treated as separate categories for imputation modeling.
 
+There may be characteristics of the group, such as the householder's income and the total
+income for all members of the household, that are useful for processing each record.
+Tea handles such characteristics by adding a field giving the group-based value, so that
+each observation of the data set has the group-based value in its record.
 
+On the back-end, the recodes are generated via an SQL table view. We have a table named
+tt(dc), so the recodes will be in a table named tt(viewdc). Therefore, all recodes are
+simple fragments of SQL.
+
+Here is a sample spec file that generates several recodes.
+
+InSpec(recode)
+
+Items(
+    ∙ For imputation, we will need a column with a unique identifier, so Tea can record
+    which imputed value goes with which record. Census household data usually gives a
+    household number (here, tt(serialno)) and a household member number (here, tt(sporder)),
+    so we can generate a unique ID by joining the two together.
+
+    ∙ Income in US dollars is given by the tt(PINCP) variable. Because it is often easier to
+    work with log of income, we generate a variable with log of income.
+
+    ∙ The next recode segment works in groups. Each value of the given tt(group id) is
+        treated as a unit, and the given value is written down for every member of the group. 
+        So after the recode step, every observation will have a tt(hh_in) field giving the
+householder's income and a tt(house_in) field giving the total income for the household.
+
+    ∙ The householder income is the maximum over PINC for the householder (i.e., the person for whom tt(sporder==1)), and zero for 
+        everybody else, and thus gives the PINC for the householder. We use this form
+        often to pull the characteristics of one household member.
+
+    ∙ If you think the Link(http://stackoverflow.com/questions/4622/sql-case-statement-syntax~~SQL syntax
+    for case statements) is awkward, we agree with you. Watch out whether there is a
+    variable name after the tt(case) keyword [Tt(case pinc when ...)] or not [Tt(case when ...)].
+
+    ∙ A recode segment can not refer to fields generated in that recode segment. However,
+        subsequent recode segments can refer to variables generated in previous segments. 
+
+    ∙ You could also have several tt(group recode) segments. For example,
+        one segment could give state averages and one could give county averages.
+)
+
+
+The R script uses those recodes.
+
+InR(recode)
+
+Items(
+    ∙ The tt(doInput) function does the recodes, so there is no need for a separate tt(doRecodes) function.
+
+    ∙ We can treat the new fields exactly like we do the ones supplied in the input data.
+
+    ∙ Tea keeps a few variables in an R environment named tt(teaenv). The name of the table after the last step
+        is stored in Tt(teaenv\$active\_tab). If there were no
+        recodes, this would be tt(dc); because there were recodes, this is tt(viewdc).
+
+    ∙ The script gets the average log income and average tt(log_house_in), taking care to
+        add a condition to only get those records where that sum is not tt(-Inf).
+        But the average of tt(log_house_in) is an unusual statistic, because it goes per
+        capita: a household of seven counts seven times as much as a household of one.
+
+    ∙ The last line of the script gets an average using one value per household. It uses
+        the tt(dbGetQuery) function from the tt(RSQLite) library to directly query
+        the database. The function needs a database connection to talk to, and that too is
+        in the tt(teaenv) environment, stored as tt(teanev$con).
+)
 
 
 
@@ -301,6 +376,8 @@ distribution, akin to the univariate Hot Deck distribution.
 
 
 Subsection(Imputing incomes~~incimp)
+
+Section(Editing~~editsec) 
 
 Section(Synthetic data~~synthsec)
 

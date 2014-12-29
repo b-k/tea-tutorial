@@ -11,7 +11,7 @@ pdf:
 	cd out && pdflatex tea_tutorial
 	cd out && pdflatex tea_tutorial
 
-HTMLout=~/tmp/tea_tutorial
+HTMLout=~/tmp/tea-tutorial
 
 html:
 	mkdir -p out
@@ -27,3 +27,4 @@ html:
 
 push:
 	cd $(HTMLout) && git commit -a -m "Another update." && git push origin gh-pages
+	scp out/tea_tutorial.pdf klemens@klemens.org:www/ben/pdfs/

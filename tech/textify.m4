@@ -43,9 +43,9 @@ define_blind(Subsection, <|\subsection{$1}<||>m4_ifelse($2,<||>,<||>,<|\label{$2
 define_blind(Paragraph, <|\paragraph{$1}<||>m4_ifelse($2,<||>,<||>,<|\label{$2}|>)|>)
 define_blind(Link, <|\link{m4_shift($*)}{$1}|>)
 
-define_ref(PRef, <|$1 (page \pageref{m4_translit(<|$2|>, ' 	
+define_blind(PRef, <|$1 (page \pageref{m4_translit(<|$2|>, ' 	
 ')})|>)
-define_ref(Ref, <|$1 \ref{m4_translit(<|$2|>, ' 	
+define_blind(Ref, <|\ref{m4_translit(<|$2|>, ' 	
 ')}|>)
 
 define_blind(RCode, <|\begin{lstlisting}[language=R]
