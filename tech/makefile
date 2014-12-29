@@ -27,4 +27,4 @@ html:
 
 push:
 	cd $(HTMLout) && git commit -a -m "Another update." && git push origin gh-pages
-	scp out/tea_tutorial.pdf klemens@klemens.org:www/ben/pdfs/
+	scp out/tea_tutorial.pdf klemens@klemens.org:www/ben/pdf/

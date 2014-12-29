@@ -13,9 +13,9 @@ describe filling in missing data, we use it broadly to mean any modification of 
 data item that involves choosing among alternatives, regardless of which of the 
 above failures prompted the fill-in. 
 
-This document is a detailed overview of the Tea system, its components, and their usage.
+This tutorial provides a detailed overview of the Tea system, its components, and their usage.
 
-HTML(You can also read Link(http://klemens.org/pdfs/tea-tutorial.pdf~~this tutorial as a PDF).)
+HTML(You can also read Link(http://ben.klemens.org/pdfs/tea_tutorial.pdf~~this tutorial as a PDF).)
 TeX(You can also read this tutorial in your browser at \url{http://b-k.github.io/tea-tutorial/}.)
 
 Items(
@@ -45,7 +45,7 @@ like tt(is_heterosexual_marriage) calculated from the sex of the spouses, or log
     data. This is useful for running bootstrap-style tests and protecting the identities
     of individual respondents.
 
-    ∙ TeX(Section) Ref(DA~~dasec) describes a table-based method of finding respondents at
+    ∙ TeX(Section) Ref(Disclosure avoidance~~dasec) describes a table-based method of finding respondents at
     risk of being identifiable, and blanking out portions of their information so an imputed
     value can be filled in.
 )
