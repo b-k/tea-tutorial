@@ -7,8 +7,9 @@ input {
 }
 
 fields {
-    age: real
-    pincp: real
+    agep: real
+    PINCP: real
+    log_in: real
     schl: int 1-24
 }
 
@@ -25,4 +26,17 @@ group recodes {
 
 recodes {
     log_house_in: log10(house_in)
+
+    has_income {
+        0 | PINCP==0
+        1 |
+    }
+
+    age_cat {
+        0 | AGEP <= 15
+        1 | AGEP between 16 and 29
+        2 | AGEP between 30 and 64
+        3 | AGEP>= 65
+        X |
+    }
 }

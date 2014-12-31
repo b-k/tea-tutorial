@@ -58,8 +58,8 @@ $1
 \end{lstlisting}
 |>)
 
-define_blind(InSpec, <| \begin{figure}\hrule\lstinputlisting{../../$1<||>.spec}\hrule\end{figure} |>)
-define_blind(InR, <| \begin{figure}\hrule\vskip.1mm\hrule\lstinputlisting{../../$1<||>.R}\hrule\vskip.1mm\hrule\end{figure} |>)
+define_blind(InSpec, <| \vskip \baselineskip \hrule\lstinputlisting{../../$1<||>.spec}\hrule |>)
+define_blind(InR, <| \vskip \baselineskip \hrule\vskip.1mm\hrule\lstinputlisting{../../$1<||>.R}\hrule\vskip.1mm\hrule |>)
 
 define_blind(Items,
 <|\begin{itemize}
@@ -78,6 +78,7 @@ m4_divert(9)
 m4_divert(0)
 
 \documentclass{article}
+\usepackage[utf8]{inputenc}
 
 \long\def\comment#1{}
 \long\def\cmt#1{}
