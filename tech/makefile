@@ -13,7 +13,9 @@ pdf:
 
 HTMLout=~/tmp/tea-tutorial
 
-html:
+insert_ps:
+
+html: insert_ps
 	mkdir -p out
 	f=../tea_tutorial ;  \
 		sed 's/,/<|,|>/g' $$f  | sed 's/~~/,/g' | m4 -P htmlify.m4  - | sed -e 's|<ul> *</li>|<ul>|' | insert_ps | \

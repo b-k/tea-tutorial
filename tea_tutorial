@@ -198,6 +198,11 @@ Items(
 
     ∙ The second example uses R's tt(summary()) function to show the means and medians of the
     age and schooling categories.
+
+    ∙ Spacing is largely irrelevant, but each key:value pair must end with a newline (or
+        the \} closing a group, though we think it looks better with the \} on its own
+        line). You will see some examples below where the expression is too long for one
+        line, so lines are joined by ending the first line with a backslash.
 )
 
 
@@ -283,19 +288,19 @@ householder's income and a tt(house_in) field giving the total income for the ho
     ∙ A recode segment can not refer to fields generated in that recode segment. However,
         subsequent recode segments can refer to variables generated in previous segments. 
 
-    ∙ Because SQL tt(case) statements are difficult to write, but recodes with an if-then
-    format are so common, Tea provides a special syntax for writing some recodes. The
-    tt(income_cat) recode will be set to zero if tt(PINCP==0), to one if tt(PINCP) is
-    greater than zero but less than tt(15000), and so on. The last item may be blank, in
-    which case it is the default value when none of the above options apply to a record.
-    Here, the default of tt(X) will be assigned for any negative or NaN values.
+    ∙ Because SQL tt(case) statements are difficult to write, but recodes with an
+    if-then format are so common, Tea provides a special syntax for writing some recodes.
+    The tt(has_income) varible will be zero if tt(PINCP) is zero, and will be one in all
+    other cases. The tt(age_cat) recode behaves similarly: if tt(AGEP <=15), then
+    tt(age_cat) is set to zero, and so on. The tt(between) keyword is standard SQL,
+    and is inclusive of the endpoints of the range. The default of tt(X) will be
+    assigned for any negative or NaN values.
 
     ∙ The spec could also have several tt(group recode) segments. For example,
         one segment could give state averages and one could give county averages.
 )
 
-
-The R script uses those recodes.
+The R script uses some of those recodes.
 
 InR(recode)
 
@@ -322,9 +327,6 @@ Items(
 
 
 
-
-
-
 Section(Imputation~~impsec) 
 
 This section will begin with an overview of the many methods one could use to fill in a
@@ -334,14 +336,32 @@ The first are what we will call mechanical edits, which are deterministic if-the
 rules.  For example, if a birth date is given but an age is not, then fill in the age
 by calculating the time span between the birth date and the survey.
 
+Paragraph(mechanical edits)
 Mechanical methods are best when there is a single correct answer that can be calculated
 from available information, such as in an accounting ledger where certain sets of numbers
 must add up to certain sums.
 
-\citet{edit:review} gives an overview of the problem of editing (including a useful
-glossary). The models covered in that paper are uniformly in the class of me\-chan\-i\-cal
-edits, including several implementations of the method of \citet{fellegi:holt}
-and deterministic nearest-neighbor methods, such as that used by \citet{garcia:balance}.
+Here is a simple case from the example below:
+
+SpecCode(has_income=0 and PINC is null => PINC=0)
+
+This reads as an if-then statement: if tt(has_income=0 and PINC is null), then set
+tt(PINC=0).
+
+People at extreme ends of a range, such as the exceptionally long-lived or the
+exceptionally high-income, are a disclosure avoidance risk, so statistical agencies often
+em(top code), changing all values above a threshold to the threshold itself. A top code is
+a mechanical edit, e.g., to set all people making over a million a year to exactly a
+million:
+
+SpecCode(PINC>1e6 => PINC=1e6)
+
+
+Some history and literature: \citet{edit:review} gives an overview of the problem of
+editing (including a useful glossary). The models covered in that paper are uniformly
+in the class of me\-chan\-i\-cal edits, including several implementations of the method
+of \citet{fellegi:holt} and deterministic nearest-neighbor methods, such as that used
+by \citet{garcia:balance}.
 
 This thread has continued into the present day.
 \citet{chen:threesystems} discusses three newer systems, each of which focuses on
@@ -352,6 +372,7 @@ failure; the DISCRETE system Citep(winkler:discrete) uses Fellegi-Holt's method 
 derive imputation rules from the edits; what is now CANCEIS Citep(bankir:canceis) uses
 a relatively sophisticated nearest-neighbor rule for imputation.
 
+Paragraph(probabilistic edits)
 The next class of imputations are probabilistic. These assert some underlying distribution
 or model to the variables, and fill in a missing value by making a draw (sometimes
 multiple) from the underlying distribution.
@@ -388,8 +409,8 @@ distribution, akin to the univariate Hot Deck distribution.
 Paragraph(Categories)
 There is a broad intuition that imputed values should be taken from records `close' to the
 one missing information, perhaps in the physical sense, or in a broader sense, like
-how an apartment dweller may be like another apartment dweller than a similar person
-living in a single-family house.
+how we expect an apartment dweller to be like another apartment dweller than a similar person
+living in a single-family house, em(ceteris paribus).
 
 Tea thus provides a mechanism to do imputations by categories. Given this part in the
 tt(impute) segment of a spec file,
@@ -406,11 +427,11 @@ and a record with a known tt(income_cat), tt(sex), and tt(puma), only records wi
 same characteristics will be used to train or fit the model.
 
 These categories `roll up' if there is insufficient data. If there are not enough
-observations in the tt(income_cat) X tt(sex) X tt(puma) category to build a model,
-then the last item in the list  is thrown out, and the model fit using tt(income_cat)
-X tt(sex). The roll-up could continue until there are no categories left, in which
-case the entire data set is used.  Set the minimum group size before a roll-up via an
-tt(impute/min group size) key.
+observations in the tt(income_cat) $\times$ tt(sex) $\times$ tt(puma) category to build a model,
+then the last categorization in the list is thrown out, and the model fit using
+tt(income_cat) $\times$ tt(sex). The roll-up could continue until there are no categories
+left, in which case the entire data set is used. Set the minimum group size before
+a roll-up via an tt(impute/min group size) key.
 
 Comment(
 The EM algorithm handles continuous variables internally (see below), but most
@@ -420,25 +441,43 @@ tt(income_cat) recode above, to group the continuous variable into ranges.
 
 
 Paragraph(Imputing incomes~~incimp)
-To give a working example, let us impute missing incomes. The problem is that the
-sample data used in this tutorial is already cleaned, so the only missing incomes
-are for people under 15 (who all have missing income, which tells us that there was
-probably an edit of the form tt(age <=15 => PINCP=NULL)). So the R script will first
-record the original distribution as reported by the Census, then blank out about 10\%
-of the incomes, then try three alternative imputation methods.
+To give a working example, let us impute missing incomes---three ways.
 
-InSpec(income)
+The sample data used in this tutorial is already-cleaned public use data, so the only
+missing incomes are for people under 15 (who all have missing income, which tells us
+that the ACS probably has an edit of the form tt(age<=15 => PINCP=NULL)). So the R
+script will first record the original distribution as reported by the Census, then
+blank out about 10\% of the incomes, then try the various imputation methods in the
+spec file.  Here is the spec file, with three imputation methods:
+
+InSpec(incomes)
 
 
-This is a tutorial consisting of simple demo code, so we make no promises that this is
-a good model for imputing missing data. But we do believe that the spec format makes
-the assumptions underlying the imputation clear, and provides an easy means of quickly
-trying different models.
+This is a tutorial consisting of simple demo code, so we make no promises that this
+is a good model for imputing missing data. There are not yet any Census surveys that
+use these techniques for income imputation.  But we do believe that the spec format
+makes the assumptions underlying the imputation clear, and provides an easy means of
+quickly trying different models.
 
-InR(income)
+InR(incomes)
 
+After every value is imputed, the edits are checked. So far, this spec only has one
+edit: that if tt(has_income=0 and PINC is null) then set (PINC=0). This guarantees
+us that at the end of the imputation of tt(has_income), the only people with incomes
+marked as missing are those who are imputed as having a nonzero income.
 
 Section(Editing~~editsec) 
+
+Edits go in the tt(checks) segment of the spec. You already saw examples above, in the
+form of the mechanical edits:
+
+SpecCode(checks {
+    has_income=0 and PINC is null => PINC=0
+    PINC>1e6 => PINC=1e6
+})
+
+
+
     
 Comment(
 We begin with mechanical edits, in which each failure has a

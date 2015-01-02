@@ -11,6 +11,7 @@ fields {
     PINCP: real
     log_in: real
     schl: int 1-24
+    has_income: int 0, 1
 }
 
 recodes {
@@ -29,7 +30,7 @@ recodes {
 
     has_income {
         0 | PINCP==0
-        1 |
+        1 | PINCP>0
     }
 
     age_cat {
@@ -39,4 +40,8 @@ recodes {
         3 | AGEP>= 65
         X |
     }
+}
+
+checks {
+    has_income=0 and PINCP is null => PINCP=0
 }
