@@ -1,3 +1,36 @@
+
+NewMMS(<|RCode|>~~<|\begin{lstlisting}[language=R]
+$1
+\end{lstlisting}
+|>~~
+              <|<div class="rcode"><pre><code>$1</code></pre></div>
+|>)
+
+
+NewMMS(<|SpecCode|>~~ <|\begin{lstlisting}[language=]
+$1
+\end{lstlisting}
+|>~~
+                 <|<div class="spec"><pre><code>$1</code></pre></div>
+|>)
+
+
+NewMMS(<|InR|>~~ <|\vskip \baselineskip \hrule\vskip.1mm\hrule\lstinputlisting{$1<||>.R}\hrule\vskip.1mm\hrule |>~~
+            <|<div class="rcode"><pre><code># $1<||>.R
+
+m4_include($1<||>.R)
+</code></pre></div>
+|>)
+
+
+NewMMS(<|InSpec|>~~ <| \vskip \baselineskip \hrule\lstinputlisting{$1<||>.spec}\hrule |>~~
+               <|<div class="spec"><pre><code># $1<||>.spec
+
+m4_include($1<||>.spec)
+</code></pre></div>
+|>)
+
+
 Raw data is often rife with missing items, logical errors, and sensitive information.
 To ignore these issues risks alienating respondents and data users alike, so data
 modification is a necessary part of the production of quality survey and census data.
