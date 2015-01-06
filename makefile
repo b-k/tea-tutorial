@@ -34,6 +34,7 @@ Files=tea_tutorial
 # If you have a bibliography database in the project directory, a references section will
 # get added to the documents.
 Bib_file=*.bib
+Bib_styles=chicago.*
 
 # These are files that may be inputs to other files, or are linked to: CSS, JPG, PNG, GIF,
 # sample code, et cetera. They are copied  into $(Out) and $(HTMLout), so you don't
@@ -64,12 +65,12 @@ HTMLout=~/tmp/
 Base:=$(shell pwd)
 
 pdf:
-	cd $(MMS_dir) && Base=$(Base) Title=$(Title) Bib_file=$(Bib_file) \
-		Out=$(Out) Files=$(Files) Extra_files="$(Extra_files)" make pdf
+	cd $(MMS_dir) && Base=$(Base) Title=$(Title) Bib_file="$(Bib_file)" \
+		Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make pdf
 
 html:
-	cd $(MMS_dir) && Base=$(Base) Title=$(Title) Bib_file=$(Bib_file) \
-		HTMLOut=$(HTMLout) Out=$(Out) Files=$(Files) Extra_files="$(Extra_files)" make html
+	cd $(MMS_dir) && Base=$(Base) Title=$(Title) Bib_file="$(Bib_file)" Bib_styles="$(Bib_styles)" \
+		HTMLOut=$(HTMLout) Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make html
 
 
 push:
