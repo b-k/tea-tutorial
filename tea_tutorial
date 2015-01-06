@@ -459,12 +459,79 @@ use these techniques for income imputation.  But we do believe that the spec for
 makes the assumptions underlying the imputation clear, and provides an easy means of
 quickly trying different models.
 
-InR(incomes)
-
 After every value is imputed, the edits are checked. So far, this spec only has one
 edit: that if tt(has_income=0 and PINC is null) then set (PINC=0). This guarantees
 us that at the end of the imputation of tt(has_income), the only people with incomes
 marked as missing are those who are imputed as having a nonzero income.
+
+
+Paragraph(Check out any time you like)
+Tea is intended for multiple imputation, either in the formal sense
+(see, e.g., Citet(schafer:multi~~Schafer)) or in the sense here, of multiple models used
+on the same data set.
+
+To facilitate this, imputations are not written to the tt(input table) specified in the
+tt(impute) section, but to a separate tt(output table).  For the tt(has_income) variable,
+the output table was tt(has_in), so after the imputation, we can have a look at that
+table:
+
+RCode(
+teaTable("has_in", limit=5)
+
+TeX(<|)\begin{verbatim}|>)
+  draw value       id      field
+1    0     1   348902 has_income
+2    0     0  6462602      PINCP
+3    0     0  6462602 has_income
+4    0     0 18435903      PINCP
+5    0     0 18435903 has_income
+TeX(\end{verbatim})
+HTML(<|)|>)
+
+Each id/field coordinate in the original table that has an imputed value will have a row
+in the fill-in table. Here only one draw was made per imputed value, so the tt(draw)
+column is all zeros; if you specify tt(draw count) to be greater than one, then this will
+take appropriate values.
+
+This is the output for the imputation of tt(has_income),
+but because the edit rules specify that tt((has_income=0, PINCP=NULL)) is an inconsistent
+value, the fill-in table also specifies cases where PINCP has to be adjusted to maintain
+consistency.
+
+The list of imputations is sometimes useful for debugging, but we actually want the complete
+data set. Check out an imputation into a new database table as needed:
+
+RCode(checkOutImpute(teaenv$active_tab, "complete_tab", filltab="has_in")
+outdata <- teaTable("complete_tab")
+)
+
+One imputation often follows another. Here, the model of income depends on the
+tt(has_income) variable, so we have to impute tt(has_income) first. Imputations are done
+in the sequence listed in the spec file. Use the tt(earlier output table) key in an
+tt(impute) group to specify
+a table of fill-ins to be checked out before embarking on the imputation described by this
+group.
+
+If you want to not bother with a fill-in table and write imputations directly to the
+input table, add the tt(autofill) key to an imputation.
+
+Paragraph(R code for imputing income)
+
+Here is some R code to 
+
+Items(
+∙ Blank out some incomes.
+∙ Do the several imputations as per the spec file above, via tt(doMImpute).
+∙ Check out the imputations in sequence, bind them together, and plot the several log income
+distributions on one plot.
+
+)
+
+
+InR(incomes)
+
+
+
 
 Section(Editing~~editsec) 
 
@@ -474,8 +541,12 @@ form of the mechanical edits:
 SpecCode(checks {
     has_income=0 and PINC is null => PINC=0
     PINC>1e6 => PINC=1e6
+
+    PINC<0
 })
 
+
+Something about edits being pessimistic here.
 
 
     

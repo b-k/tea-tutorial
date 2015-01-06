@@ -44,4 +44,6 @@ recodes {
 
 checks {
     has_income=0 and PINCP is null => PINCP=0
+
+    PINCP < 0
 }
