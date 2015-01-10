@@ -25,8 +25,10 @@
 # If you have several files and a wildcard doesn't find them, you can list them, e.g.,
 # FILES= intro.tex ch01.tex conclusion
 
-# What shall we call the final .pdf and .html files?
-Title=tea_tutorial
+Title=Tea for survey processing: a tutorial
+Author=Ben Klemens, Rolando Rodríguez, and David Vernet
+
+Out_name=tea_tutorial
 
 # What files provide the text of the document?
 Files=tea_tutorial
@@ -34,12 +36,14 @@ Files=tea_tutorial
 # If you have a bibliography database in the project directory, a references section will
 # get added to the documents.
 Bib_file=*.bib
-Bib_styles=chicago.*
+Bib_style_files=chicago.*
+# The style for your bibliography file. plainnat (plain natural) is a fine default.
+Bib_style=plainnat
 
 # These are files that may be inputs to other files, or are linked to: CSS, JPG, PNG, GIF,
 # sample code, et cetera. They are copied  into $(Out) and $(HTMLout), so you don't
 # have to do so yourself. Any directory structure is largely destroyed.
-Extra_files=*.spec *.R
+Extra_files=*.spec *.R *.css
 
 # In what directory did you put the MMS?
 MMS_dir=~/mms
@@ -53,6 +57,11 @@ Out=o2
 # A separate HTML output directory
 HTMLout=~/tmp/
 
+# What file has LaTeX instructions that have to come before the \begin{document} (typically \usepackage commands)?
+Preamble=texhead.tex
+
+# What file has HTML instructions that go in the header?
+HTMLHeader=
 
 
 
@@ -65,12 +74,13 @@ HTMLout=~/tmp/
 Base:=$(shell pwd)
 
 pdf:
-	cd $(MMS_dir) && Base=$(Base) Title=$(Title) Bib_file="$(Bib_file)" \
-		Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make pdf
+	cd $(MMS_dir) && Base=$(Base) Author="$(Author)" Title="$(Title)" Out_name="$(Out_name)" \
+		Bib_file="$(Bib_file)" Bib_style_files="$(Bib_style_files)" Bib_style="$(Bib_style)" \
+        Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make pdf
 
 html:
-	cd $(MMS_dir) && Base=$(Base) Title=$(Title) Bib_file="$(Bib_file)" Bib_styles="$(Bib_styles)" \
-		HTMLOut=$(HTMLout) Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make html
-
+	cd $(MMS_dir) && Base=$(Base) Author="$(Author)" Title="$(Title)" Out_name="$(Out_name)"  \
+		Bib_file="$(Bib_file)" Bib_style_files="$(Bib_style_files)" Bib_style="$(Bib_style)" \
+        HTMLout=$(HTMLout) Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make html
 
 push:

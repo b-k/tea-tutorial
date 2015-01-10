@@ -1,3 +1,4 @@
+HTML( <link rel="stylesheet" href="tutorial.css" type="text/css" >)
 
 NewMMS(<|RCode|>~~<|\begin{lstlisting}[language=R]
 $1
