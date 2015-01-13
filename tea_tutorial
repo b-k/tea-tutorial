@@ -597,7 +597,31 @@ the predominant means of editing.
 Section(Disclosure avoidance~~dasec)
 
 Section(Synthetic data~~synthsec)
+em(Raking) is a method of producing a table of cells consistent with a given list of margins.
+For example, we may require that any data set we produce have an age $\times$ race
+$\times$ ethnicity distribution and a sex $\times age$ distribution that exactly
+matches the complete data in a census.
 
+Raking is a simple method by which the values in the survey table can be incrementally
+reweighted to match the values in the census. Let em(close) indicate Kullback-Leibler
+divergence; then the raked table is the closest table to the original data subject to
+the constraints of the row and column totals specified by the census.
+
+Given more dimensions, we may want certain sets of dimensions to match a reference, such
+as requiring all (block) $\times$ (sex) categories to fit to the reference values.
+
+But consider the case where there was no survey; we can begin with a `noninformative'
+table in which all cells are filled with ones, and rake that to the closest table that
+matches the specified margins.
+
+Raking a noninformative table as per the above definition (or many others) to margins
+deemed to not be a disclosure risk will produce microdata that also bears no disclosure
+risk, and can be presented to the public.
+
+Tea's raking algorithm is designed to work well with sparse tables, and makes heavy use of
+the database for its work. If the marginal cells imply a large number of zeros (which is a
+near-certainty in high-dimensional tables), those cells will remain zero in the raked
+table.
 
 
 
@@ -1714,27 +1738,6 @@ is not a direct observation.
 
 
 Section(Synthesizing microdata) 
-Raking is a method of producing a table of cells consistent with a given list of margins.
-For example, we may require that any data set we produce have an age $\times$ race
-$\times$ ethnicity distribution and a sex $\times age$ distribution that exactly
-matches the complete data in the survey.
-
-This tutorial will not go into the details of raking. But we can begin with any trivial
-data set, such as one record for every possible combination of characteristics, and
-rely on raking to transform the initial data set into one whose distribution matches
-all required margins.
-
-The microdata produced using a fixed and trivial initial data set adds no information to the information provided by the margins.
-Given margins that are cleared for public use and have been determined to not cause any
-disclosure risk, the microdata adds no risk and should have the same status.
-
-The key inputs are the set of fields that are going to appear in the final
-crosstab, and a list of sets of fields whose column totals (and cross-totals)
-must not change.
-
-Here is see a sample specification for a three-way crosstab between
-the tt(PUMA), tt(rac1p), and tt(catage) variables. All pairwise crosstabs
-must not change, but any other details are free to be changed for the raking.
 
 SpecCode(
 raking {
