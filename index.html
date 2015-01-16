@@ -1,0 +1,480 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html> <head>
+ <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+ <link rel="stylesheet" href="tutorial.css" type="text/css" >
+     <title>Tea for survey processing: a tutorial</title>
+
+
+<!-- LaTeX math -->
+<script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+<script type="text/x-mathjax-config">
+      MathJax.Hub.Config({tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']],
+      processEscapes: true}});
+</script>
+
+<script src="http://modelingwithdata.org/arch/highlight.pack.js"></script>
+<script>hljs.initHighlightingOnLoad();</script>
+
+     </head><body>
+     <h1>Tea for survey processing: a tutorial</h1>
+
+
+<P>
+Raw data is often rife with missing items, logical errors, and sensitive information.
+To ignore these issues risks alienating respondents and data users alike, so data
+modification is a necessary part of the production of quality survey and census data.
+Tea is a statistical library designed to eradicate these errors via a framework
+that is user-friendly, effectively handles Census-sized data sets, and processes
+quickly even with relatively sophisticated methods.</p>
+
+<p>Tea implements a two step process for addressing issues with raw data. The first is to
+identify failures—missing data, logical errors, or sensitive
+information—and then, having identified problem data, impute new values
+to replace the old ones. Although the term <em>imputation</em> is typically used only to 
+describe filling in missing data, we use it broadly to mean any modification of a 
+data item that involves choosing among alternatives, regardless of which of the 
+above failures prompted the fill-in. </p>
+
+<p>This tutorial provides a detailed overview of the Tea system, its components, and their usage.</p>
+
+<p>You can also read <a href="http://ben.klemens.org/pdfs/tea_tutorial.pdf">this tutorial as a PDF</a>.</p>
+
+<p><ul>
+<li>  <a href="#basicssec">Basics</a> presents a `hello, world' example to introduce the basic mechanics of the system,
+and the format of the spec file used to describe a survey.</p>
+
+<p>    </li>
+<li>  <a href="#recodesec">Recodes</a> 
+    describes Tea's syntax for generating new variables based on other variables, 
+like <tt>is_heterosexual_marriage</tt> calculated from the sex of the spouses, or log of income calculated from income.</p>
+
+<p>    </li>
+<li>  <a href="#impsec">Imputation</a>
+    goes into greater detail on the procedure for imputing missing values, the specific
+    models available, and the use of multiple imputation.</p>
+
+<p>    </li>
+<li>  <a href="#editsec">Editing</a> describes <em>editing</em>, the process
+    of finding elements that fail validity checks.</p>
+
+<p>    </li>
+<li>  <a href="#dasec">Disclosure avoidance</a> describes a table-based method of finding respondents at
+    risk of being identifiable, and blanking out portions of their information so an imputed
+    value can be filled in.</p>
+
+<p>    </li>
+<li>  <a href="#synthsec">Synthetic microdata</a> describes Tea's mechanism
+    for generating synthetic microdata with marginal values identical to the source
+    data. This is useful for running bootstrap-style tests and protecting the identities
+    of individual respondents.</p>
+
+</li></ul></p>
+
+<p><b>This tutorial is a work in progress.</b> Tea has an open development model, wherein users
+have been able to download versions almost since its inception. We follow the same process
+for this tutorial, posting the draft as we write it, and adding more every week.</p>
+
+<h6>Installing Tea</h6><p> The interface for Tea is an R package, but depends on several
+C libraries.
+That means that installation is not as trivial as typical R packages, but we found
+the large-scale processing we had to do to be largely impossible when staying exclusively
+within ecosystem of things installable via <tt>install.package</tt>.</p>
+
+<p>If you are set up to use virtual machines, check out the
+<a href="https://github.com/GovReady/govready-Tea">GovReady Tea machine</a>.</p>
+
+<p>Installation is easiest on a system with a package management system.
+Package managers give you immediate access to thousands of programs, libraries,
+language compilers, games, and everything else a computer can do. Linux users
+know their package manager; Mac users can use <a href="http://macports.org">MacPorts</a>
+or <a href="http://finkproject.org">Fink</a>; Windows users can use
+<a href="http://cygwin.com">Cygwin</a>.</p>
+
+<p>Once you have the basic platform set up,</p>
+
+<p><ul>
+<li> Install the <a href="http://apophenia.info/setup.html">Apophenia library</a>
+</li>
+<li> Install the R-to-Apophenia link, <a href="https://github.com/b-k/Rapophenia">Rapophenia</a>
+</li>
+<li> Install <a href="https://github.com/rodri363/tea">Tea</a></p>
+
+</li></ul></p>
+
+<h6>Citing Tea</h6><p> To date, the only formal publication describing Tea is a UN
+proceedings paper (<a href="#klemens:tea">klemens:tea</a>), so until we get out more publications it is may
+be the best option when citing Tea in an academic paper:</p>
+
+<div class="spec"><pre><code>@inproceedings{klemens:tea,
+    author={Ben Klemens},
+    title= {Tea for Survey Processing},
+    booktitle={Proceedings of the Conference of European Statisticians},
+    chapter={Working paper 29},
+    crossref={UNECE12}
+}
+
+@proceedings{UNECE12,
+    title={Proceedings of the Conference of European Statisticians},
+    series={Work Session on Statistical Data Editing},
+    organization={United Nations Economic Commission for Europe},
+    year=2012,
+    month=Sep
+}
+</code></pre></div>
+
+<p><a name="basicssec"><h2>System basics</h2></a><p></p>
+
+<p>The full specification of the various steps of Tea's process, from input of data to
+final production of output tables, is specified in a single plain text file, herein
+called the <em>spec file</em>.  An R script executes the plan based on the spec file description.</p>
+
+<p>There are several benefits to such a work flow.  First, because the spec file is separate
+from programming languages like R or SAS, it is a simpler grammar that is easier to
+write, and analysts whose areas of expertise are not in programming can
+write technical specifications without the assistance of a programmer or training
+in a new programming language. Second, this follows the programming adage that data and
+procedure should be kept separate. Modifying the list of valid responses to a survey
+question should not require touching any procedural code; modifying the procedure
+by which the survey is processed should not require rewriting the description of the
+survey questions or their validity rules. Third, we hope that spec files will be published
+along with data sets, so that users can see the assumptions made during processing.</p>
+
+<p>Throughout this tutorial, code snippets that have a file name can be found in the 
+<a href="https://github.com/b-k/tea-tutorial.git">tutorial repository</a>. Being plain text,
+you can open and edit them using Kate or any other text editor. From that directory,
+you can cut/paste the R sample code onto the R command prompt, or run the program
+using R's the <tt>source</tt> command, e.g., from R:</p>
+
+<div class="rcode"><pre><code>source("hello.R")
+</code></pre></div>
+
+<p>This leaves you at the R prompt with the Tea library loaded and any variables defined in
+<tt>hello.R</tt> ready for your interrogation.</p>
+
+<p>If you want to run a script and exit, you can do this via R's <tt>-f</tt> flag. From the
+command line:</p>
+
+<div class="spec"><pre><code>R -f hello.R
+</code></pre></div>
+
+<h6>Hello</h6><p></p>
+
+<p>Our first example will load in a data set (the Public Use Micro Sample for the American
+Community Survey, DC, 2008) and do some simple queries, without yet
+doing any editing or imputation. Here is the spec file:</p>
+
+<div class="spec"><pre><code># hello.spec
+
+database: test.db
+
+input {
+    input file: dc_pums_08.csv
+    output table: dc
+    overwrite: yes
+}
+
+fields {
+    age: real
+    schl: int 1-24
+}
+
+</code></pre></div>
+
+<p>Almost everything in the spec file will consist of key:value pairs, which may be
+organized into groups (and subgroups).</p>
+
+<p>Everything on a line after a <tt>#</tt> is a comment that the spec parser will ignore.
+Blank lines are also ignored.</p>
+
+<p>The first non-comment, non-blank line of every spec file needs to specify a database;
+more on this requirement in  <a href="#subkeys">Subkeys</a>. This will be a file generated on
+disk (or opened, if it already exists), using the SQLite database library. The name
+doesn't have to end in <tt>.db</tt>, but we recommend sticking to that custom. If you are
+an SQLite expert, you can view or modify this database using your favorite SQLite tools.</p>
+
+<p>The <tt>input</tt> segment of the spec gives the name of the input
+file, and the name of the table that will be generated from that input.</p>
+
+<p>Unless you already have data in an SQLite database, all inputs are via plain text,
+typically called CSV files (for comma-separated values), though the delimiter can be set to almost
+anything; we prefer pipes, $|$ . </p>
+
+<p>This spec file tells Tea to overwrite the <tt>dc</tt> table if it already exists. This can be
+useful for running an analysis from start to finish, but in most cases, the read-in is
+time-consuming and most later operations will not modify the source data, so the default
+if the input segment has no <tt>overwrite</tt> key is to assume <tt>overwrite: no</tt>.</p>
+
+<p>The spec also includes a section describing two of the fields: <tt>age</tt> is a real number, and
+<tt>schl</tt> is an integer from 1 to 24. Not all fields have to be specified, but it helps to
+guarantee that SQLite doesn't treat the entries as text, and will be required when we get
+to editing.</p>
+
+<p>Now that we have specified the characteristics of the survey, we can move on to
+<tt>hello.R</tt>, which makes use of that description:</p>
+
+<div class="rcode"><pre><code># hello.R
+
+library(tea)
+readSpec("hello.spec")
+doInput()
+
+tt <- teaTable("dc", limit=20, cols=c("serialno", "agep", "schl"))
+print(tt)
+
+print(summary(teaTable("dc", cols=c("agep", "schl"))))
+
+</code></pre></div>
+
+<p><ul>
+<li> The first line, <tt>library(tea)</tt> loads Tea, and the second, <tt>readSpec("hello.spec")</tt>
+    reads the spec file. </p>
+
+<p>    </li>
+<li> At this point, the database is open, and Tea knows about all of
+    the configuration options in the spec file. Thus, the <tt>doInput()</tt> function
+    does not need input arguments specifying the name of the text file or other details—that
+    can all be read off from the spec.</p>
+
+<p>    </li>
+<li> After <tt>doInput()</tt> runs, the requested table, <tt>dc</tt>, exists in the database. The
+    <tt>teaTable()</tt> function pulls data from the database. In the example above, the first
+    use of <tt>teaTable</tt> prints to the screen, so we limit the number of columns to pull to 20,
+    and requests only three columns.</p>
+
+<p>    </li>
+<li> The second example uses R's <tt>summary()</tt> function to show the means and medians of the
+    age and schooling categories.</p>
+
+</li></ul></p>
+
+<p><a name="subkeys"><h3>Subkeys</h3></a><p>
+Why does the first line of the spec file have to be a database? Because the first step in
+processing is to convert the spec file into a database table. The table is named <tt>keys</tt>,
+and you can view it like any other:</p>
+
+<div class="rcode"><pre><code>teaTable("keys")
+
+                 key   tag count          value
+1           database 0 tag     1        test.db
+2   input/input file 1 tag     2 dc_pums_08.csv
+3 input/output table 1 tag     3             dc
+
+</code></pre></div>
+
+<p>The format of the <tt>keys</tt> table is subject to change, so please do not rely on it for
+processing. However, it can be useful to check that the parser did what you expected.
+The <tt>fields</tt> and <tt>checks</tt> sections do not get encoded into this table, but every other
+key:value pair will get one row. Comparing this table to <tt>hello.spec</tt> shows how the
+keys embedded in a group are written via a group/key notation. So when you see
+<tt>input/input file</tt>, this would have appeared in the spec as </p>
+
+<div class="spec"><pre><code>input {
+    input file: ...
+}
+</code></pre></div>
+
+<p>That said, here is an <a href="http://rodri363.github.io/tea/keys.html">alphabetical list of all Tea keys</a>.</p>
+
+<p><a name="recodesec"><h2>Recodes</h2></a><p>
+A <em>recode</em> is a variable that is deterministically generated from another variable. The
+name comes from variables made via simple code switches, like taking three-digit race codes (100, 101,
+..., 200, 201, ...) and reducing them to one-digit race codes (1, 2, ...). But
+they are a versatile solution to many little survey annoyances. If you find yourself
+referring to a complex expression several times, it might be best to define a variable
+based on that expression. It is easy to use a recode to define sets of observations
+that can then be treated as separate categories for imputation modeling.</p>
+
+<p>There may be characteristics of the group, such as the householder's income and the total
+income for all members of the household, that are useful for processing each record.
+Tea handles such characteristics by adding a field giving the group-based value to each
+record.</p>
+
+<p>On the back-end, the recodes are generated via an SQL table view. We have a table named
+<tt>dc</tt>, so the recodes will be in a table named <tt>viewdc</tt>. Therefore, all recodes are
+simple fragments of SQL.</p>
+
+<p>Here is a sample spec file that generates several recodes.</p>
+
+<div class="spec"><pre><code># recode.spec
+
+database: test.db
+id: id
+
+input {
+    input file: dc_pums_08.csv
+    output table: dc
+}
+
+fields {
+    age: real
+    pincp: real
+    schl: int 1-24
+}
+
+recodes {
+    id: serialno*100 + sporder
+    log_in: log10(PINCP+10)
+}
+
+group recodes {
+   group id: serialno
+   hh_in: max(case sporder when 1 then log_in else 0 end)
+   house_in: sum(case when PINCP is not null and PINCP > 0 then PINCP else 0 end)
+}
+
+recodes {
+    log_house_in: log10(house_in)
+}
+
+</code></pre></div>
+
+<p><ul>
+<li> For imputation, we will need a column with a unique identifier, so Tea can record
+    which imputed value goes with which record. Census household data usually gives a
+    household number (here, <tt>serialno</tt>) and a household member number (here, <tt>sporder</tt>),
+    so generate a unique ID by joining the two together.</p>
+
+<p>    </li>
+<li> Income in US dollars is given by the <tt>PINCP</tt> variable. Because it is often easier to
+    work with log of income, generate a variable with log of income. The <tt>+10</tt> prevents
+    log-of-zero errors.</p>
+
+<p>    </li>
+<li> The next recode segment works in groups. Each value of the given <tt>group id</tt> is
+        treated as a unit, and the given value is written down for every member of the group. 
+        So after the recode step, every observation will have a <tt>hh_in</tt> field giving the
+householder's income and a <tt>house_in</tt> field giving the total income for the household.</p>
+
+<p>    </li>
+<li> The householder income is the maximum over PINC for the householder (i.e., the person for whom <tt>sporder==1</tt>), and zero for 
+        everybody else, and thus gives the PINC for the householder. We use this form
+        often to pull the characteristics of one household member.</p>
+
+<p>    </li>
+<li> If you think the <a href="http://stackoverflow.com/questions/4622/sql-case-statement-syntax">SQL syntax
+    for case statements</a> is awkward, we agree with you. Watch out whether there is a
+    variable name after the <tt>case</tt> keyword [<tt>case pinc when ...</tt>] or not [<tt>case when ...</tt>].</p>
+
+<p>    </li>
+<li> A recode segment can not refer to fields generated in that recode segment. However,
+        subsequent recode segments can refer to variables generated in previous segments. </p>
+
+<p>    </li>
+<li> You could also have several <tt>group recode</tt> segments. For example,
+        one segment could give state averages and one could give county averages.</p>
+
+</li></ul></p>
+
+<p>The R script uses those recodes.</p>
+
+<div class="rcode"><pre><code># recode.R
+
+library(tea)
+readSpec("recode.spec")
+doInput()
+
+tt <- teaTable("viewdc", limit=20, cols=c("id", "PINCP", "log_in", "hh_in", "house_in"))
+print(tt)
+
+print(summary(teaTable(teaenv$active_tab, cols=c("log_in", "log_house_in"),
+                                          where="log_in+log_house_in > -100")))
+
+print(dbGetQuery(teaenv$con, "select avg(log_house_in) from \
+                                        (select distinct serialno, log_house_in \
+                                         from viewdc where log_house_in > -100)"))
+
+</code></pre></div>
+
+<p><ul>
+<li> The <tt>doInput</tt> function does the recodes, so there is no need for a separate <tt>doRecodes</tt> function.</p>
+
+<p>    </li>
+<li> We can treat the new fields exactly like we do the ones supplied in the input data.</p>
+
+<p>    </li>
+<li> Tea keeps a few variables in an R environment named <tt>teaenv</tt>. The name of the table after the last step
+        is stored in <tt>teaenv\$active\_tab</tt>. If there were no
+        recodes, this would be <tt>dc</tt>; because there were recodes, this is <tt>viewdc</tt>.</p>
+
+<p>    </li>
+<li> The script gets the average log income and average <tt>log_house_in</tt>, taking care to
+        add a condition to only get those records where that sum is not <tt>-Inf</tt>.
+        But the average of <tt>log_house_in</tt> is an unusual statistic, because it goes per
+        capita: a household of seven counts seven times as much as a household of one.</p>
+
+<p>    </li>
+<li> The last line of the script gets an average using one value per household. It uses
+        the <tt>dbGetQuery</tt> function from the <tt>RSQLite</tt> library to directly query
+        the database. The function needs a database connection to talk to, and that too is
+        in the <tt>teaenv</tt> environment, stored as <tt>teanev$con</tt>.</p>
+
+</li></ul></p>
+
+<p><a name="impsec"><h2>Imputation</h2></a><p> </p>
+
+<p>This section will begin with an overview of the many methods one could use to fill in a
+blank in a survey, and will then show how Tea implements them.</p>
+
+<p>The first are what we will call mechanical edits, which are deterministic if-then
+rules.  For example, if a birth date is given but an age is not, then fill in the age
+by calculating the time span between the birth date and the survey.</p>
+
+<p>Mechanical methods are best when there is a single correct answer that can be calculated
+from available information, such as in an accounting ledger where certain sets of numbers
+must add up to certain sums.</p>
+
+<p>\citet{edit:review} gives an overview of the problem of editing (including a useful
+glossary). The models covered in that paper are uniformly in the class of me\-chan\-i\-cal
+edits, including several implementations of the method of \citet{fellegi:holt}
+and deterministic nearest-neighbor methods, such as that used by \citet{garcia:balance}.</p>
+
+<p>This thread has continued into the present day.
+\citet{chen:threesystems} discusses three newer systems, each of which focuses on
+determining the cause of the error and imputing accordingly: the editing system for the
+American Community Survey (ACS, from the US Census Bureau) consists of a long sequence
+of if-then rules that specify what substitutions are to be made given every type of
+failure; the DISCRETE system (<a href="#winkler:discrete">winkler:discrete</a>) uses Fellegi-Holt's method to
+derive imputation rules from the edits; what is now CANCEIS (<a href="#bankir:canceis">bankir:canceis</a>) uses
+a relatively sophisticated nearest-neighbor rule for imputation.</p>
+
+<p>The next class of imputations are probabilistic. These assert some underlying distribution
+or model to the variables, and fill in a missing value by making a draw (sometimes
+multiple) from the underlying distribution.</p>
+
+<p>The incumbent method is <em>Hot Deck</em>, a nonparametric method in which nearby nonmissing
+values are used to generate imputed data (<a href="#cresce:census">cresce:census</a>). In its simplest form,
+Hot Deck imputation for a missing value consists of substituting a neighbor's value
+for the missing value. This is a mechanical imputation: if the value is missing, then fill
+in using the neighbor's value.</p>
+
+<p>Randomized Hot Deck is probabilistic: select a subset of similar respondents (see below),
+and assume that the missing value takes on the same distribution as the values in the
+respondent set. Having established this empirical distribution of values, make a draw (or
+draws) to fill in the missing value.</p>
+
+<p>Hot Deck does not make assumptions about mathematical relations among variables. For
+example, there is no need to evaluate and substantiate claims that variables are
+multivariate Normal, or there is a linear relationship between some set of dependent
+variables and independent variables.  Hot Deck does make the basic modeling assumption
+that neighbors are similar, and that values observed in the neighborhood are the most
+likely values that would have been observed had the missing data been gathered.</p>
+
+<p>Other models make other assumptions. We may assume that income has a Lognormal
+distribution, in which case we can calibrate the distribution by calculating $\mu$
+and $\sigma$ using the known values from the respondent set, and then drawing from
+the estimated Lognormal distribution.</p>
+
+<p>The <em>EM algorithm</em> described below builds and draws from a multivariate empirical
+distribution, akin to the univariate Hot Deck distribution.</p>
+
+<p><a name="incimp"><h3>Imputing incomes</h3></a><p></p>
+
+<p><a name="editsec"><h2>Editing</h2></a><p> </p>
+
+<p><a name="dasec"><h2>Disclosure avoidance</h2></a><p></p>
+
+<p><a name="synthsec"><h2>Synthetic data</h2></a><p></p>
+
+<p></P>
+<h2>Bibliography</h2>
+</p><p> [<a name="bankir:canceis">bankir:canceis</a>] Bankier, M., P. Mason, and P. Poirier (2002). Imputation of demographic variables in the 2001 Canadian Census  of Population. In <em>American Statistical Association, Proceedings of the Section  on Survey Research Methods</em>.</p><p> [<a name="chen:threesystems">chen:threesystems</a>] Chen, B.-C., Y. Thibaudeau, and W. E. Winkler (2002). A comparison study of ACS if-then-else, NIM, and DISCRETE edit  and imputation systems. In <em>ASA</em> Joint Statistical Meetings: Section on Survey Research  Methods.</p><p> [<a name="cresce:census">cresce:census</a>] Cresce, Jr, A. R., S. M. Obenski, and J. Farber (2005, May). Improving imputation: The plan to examine count, status, vacancy, and  item imputation in the Decennial Census. See <a href="#UNECE05">UNECE05</a>.</p><p> [<a name="fellegi:holt">fellegi:holt</a>] Fellegi, I. and D. Holt (1976). A systematic approach to automatic edit and imputation. <em>Journal of the American Statistical Association</em> <em>71</em>,  17--35.</p><p> [<a name="garcia:balance">garcia:balance</a>] Garcia, M. (2003, October). Implied edit generation and error localization for ratio and  balancing edits. See <a href="#UNECE03">UNECE03</a>.</p><p> [<a name="hartley:em">hartley:em</a>] Hartley, H. O. (1958, June). Maximum likelihood estimation from incomplete data. <em>Biometrics</em> <em>14</em>(2), 174--194.</p><p> [<a name="klemens:modeling">klemens:modeling</a>] Klemens, B. (2008). <em>Modeling with Data: Tools and Techniques for Statistical  Computing</em>. Princeton University Press.</p><p> [<a name="klemens:tea">klemens:tea</a>] Klemens, B. (2012, September). Tea for survey processing. See <a href="#UNECE12">UNECE12</a>.</p><p> [<a name="lumley:surveys">lumley:surveys</a>] Lumley, T. (2010). <em>Complex Surveys: A Guide to Analysis Using R</em>. Wiley.</p><p> [<a name="edit:review">edit:review</a>] Pierzchala, M. (1990). A review of the state of the art in automated data editing and  imputation. <em>Journal of Official Statistics</em> <em>6</em>(4), 355--377.</p><p> [<a name="r:tfm">r:tfm</a>] R Development Core Team (2005). <em>R: A language and environment for statistical computing</em>. Vienna, Austria: R Foundation for Statistical Computing. ISBN 3-900051-07-0.</p><p> [<a name="ragu:srmi">ragu:srmi</a>] Raghunathan, T. E., J. M. Lepkowski, J. V. Hoewyk, and P. Solenberger (2001,  June). A multivariate technique for multiply imputing missing values using a  sequence of regression models. <em>Survey Methodology</em> <em>27</em>(1), 85--95.</p><p> [<a name="rubin:imputation">rubin:imputation</a>] Rubin, D. B. (2004). <em>Multiple Imputation for Nonresponse in Surveys (Wiley Classics  Library)</em>. Wiley-Interscience.</p><p> [<a name="thibaudeau:cats">thibaudeau:cats</a>] Thibaudeau, Y. (2002). Model based item imputation for demographic categories. <em>Survey Methodology</em> <em>28</em>, 135--143.</p><p> [<a name="UNECE03">UNECE03</a>] United Nations Economic Commission for Europe (2003, October). <em>Proceedings of the Conference of European Statisticians</em>, Work  Session on Statistical Data Editing. United Nations Economic Commission for  Europe.</p><p> [<a name="UNECE05">UNECE05</a>] United Nations Economic Commission for Europe (2005, May). <em>Proceedings of the Conference of European Statisticians</em>, Work  Session on Statistical Data Editing. United Nations Economic Commission for  Europe.</p><p> [<a name="UNECE12">UNECE12</a>] United Nations Economic Commission for Europe (2012, September). <em>Proceedings of the Conference of European Statisticians</em>, Work  Session on Statistical Data Editing. United Nations Economic Commission for  Europe.</p><p> [<a name="winkler:discrete">winkler:discrete</a>] Winkler, W. E. (1995). Editing discrete data. In <em>American Statistical Association, Proceedings of the Section  on Survey Research Methods</em>, pp.\  108--113.</body></html>
