@@ -43,10 +43,10 @@ Bib_style=plainnat
 # These are files that may be inputs to other files, or are linked to: CSS, JPG, PNG, GIF,
 # sample code, et cetera. They are copied  into $(Out) and $(HTMLout), so you don't
 # have to do so yourself. Any directory structure is largely destroyed.
-Extra_files=*.spec *.R *.css
+Extra_files=*.spec *.R *.css log_wageplots.png
 
 # In what directory did you put the MMS?
-MMS_dir=~/mms
+MMS_dir=~/tmp/mms
 
 # What shall I call the directory where all temp files and the final PDF will be written?
 # This will be a subdirectory of the project directory. You may delete it at any time
@@ -54,8 +54,8 @@ MMS_dir=~/mms
 # not put anything there yourself; use Extra_files below to put things here.
 Out=o2
 
-# A separate HTML output directory
-HTMLout=~/tmp/
+# A separate HTML output directory. Not relative to your base directory.
+HTMLout=~/tmp/tt
 
 # What file has LaTeX instructions that have to come before the \begin{document} (typically \usepackage commands)?
 Preamble=texhead.tex
@@ -84,3 +84,4 @@ html:
         HTMLout=$(HTMLout) Out=$(Out) Files="$(Files)" Extra_files="$(Extra_files)" make html
 
 push:
+	cd $(MMS_dir) && HTMLout=$(HTMLout) Extra_files="$(Extra_files)" make push

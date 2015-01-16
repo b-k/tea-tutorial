@@ -1,34 +1,36 @@
 HTML( <link rel="stylesheet" href="tutorial.css" type="text/css" >)
 
 NewMMS(<|RCode|>~~<|\begin{lstlisting}[language=R]
-$1
-\end{lstlisting}
+$1\end{lstlisting}
+
 |>~~
               <|<div class="rcode"><pre><code>$1</code></pre></div>
 |>)
 
 
 NewMMS(<|SpecCode|>~~ <|\begin{lstlisting}[language=]
-$1
-\end{lstlisting}
+$1\end{lstlisting}
+
 |>~~
                  <|<div class="spec"><pre><code>$1</code></pre></div>
 |>)
 
 
-NewMMS(<|InR|>~~ <|\vskip \baselineskip \hrule\vskip.1mm\hrule\lstinputlisting{$1<||>.R}\hrule\vskip.1mm\hrule |>~~
+NewMMS(<|InR|>~~ <|\vskip \baselineskip \hrule\vskip.1mm\hrule\lstinputlisting{$1<||>.R}\hrule\vskip.1mm\hrule \vskip \baselineskip
+        
+|>~~
             <|<div class="rcode"><pre><code># $1<||>.R
 
-m4_include($1<||>.R)
-</code></pre></div>
+m4_include($1<||>.R)</code></pre></div>
 |>)
 
 
-NewMMS(<|InSpec|>~~ <| \vskip \baselineskip \hrule\lstinputlisting{$1<||>.spec}\hrule |>~~
+NewMMS(<|InSpec|>~~ <| \vskip \baselineskip \hrule\lstinputlisting{$1<||>.spec}\hrule\vskip \baselineskip
+
+|>~~
                <|<div class="spec"><pre><code># $1<||>.spec
 
-m4_include($1<||>.spec)
-</code></pre></div>
+m4_include($1<||>.spec)</code></pre></div>
 |>)
 
 
@@ -61,8 +63,7 @@ Comment(
     overview of using R~~rsec) for the purposes of querying, subsetting, and summarizing
     tables. )
 
-    ∙ TeX(Section) Ref(Recodes~~recodesec) 
-    describes Tea's syntax for generating new variables based on other variables, 
+    ∙ TeX(Section) Ref(Recodes~~recodesec) describes Tea's syntax for generating new variables based on other variables, 
 like tt(is_heterosexual_marriage) calculated from the sex of the spouses, or log of income calculated from income.
 
 
@@ -81,6 +82,10 @@ like tt(is_heterosexual_marriage) calculated from the sex of the spouses, or log
     for generating synthetic microdata with marginal values identical to the source
     data. This is useful for running bootstrap-style tests and protecting the identities
     of individual respondents.
+
+    ∙ HTML(An)TeX(The Appendix in Section) Ref(appendix~~appendices) provides some
+    other useful information, including some notes on missingess markers in various
+    systems and a suggestion on how to cite Tea in your papers.
 )
 
 bf(This tutorial is a work in progress.) Tea has an open development model, wherein users
@@ -113,30 +118,8 @@ Items(
 )
 
 
-Paragraph(Citing Tea) To date, the only formal publication describing Tea is a UN
-proceedings paper Citep(klemens:tea), so until we get out more publications it is may
-be the best option when citing Tea in an academic paper:
 
-SpecCode(
-@inproceedings{klemens:tea,
-    author={Ben Klemens},
-    title= {Tea for Survey Processing},
-    booktitle={Proceedings of the Conference of European Statisticians},
-    chapter={Working paper 29},
-    crossref={UNECE12}
-}
-
-@proceedings{UNECE12,
-    title={Proceedings of the Conference of European Statisticians},
-    series={Work Session on Statistical Data Editing},
-    organization={United Nations Economic Commission for Europe},
-    year=2012,
-    month=Sep
-}
-)
-
-
-Section(System basics~~basicssec)
+Chapter(System basics~~basicssec)
 
 The full specification of the various steps of Tea's process, from input of data to
 final production of output tables, is specified in a single plain text file, herein
@@ -155,7 +138,7 @@ along with data sets, so that users can see the assumptions made during processi
 
 Throughout this tutorial, code snippets that have a file name can be found in the 
 Link(https://github.com/b-k/tea-tutorial.git~~tutorial repository). Being plain text,
-you can open and edit them using Kate or any other text editor. From that directory,
+you can open and edit them using any text editor (Notepad, Kate, vi, ...). From that directory,
 you can cut/paste the R sample code onto the R command prompt, or run the program
 using R's the tt(source) command, e.g., from R:
 
@@ -194,12 +177,13 @@ disk (or opened, if it already exists), using the SQLite database library. The n
 doesn't have to end in tt(.db), but we recommend sticking to that custom. If you are
 an SQLite expert, you can view or modify this database using your favorite SQLite tools.
 
+If your data is already in an SQLite database, then you can skip the tt(input) step, but
+in typical cases your data will be in a plain text file. These are typically called CSV
+files (for comma-separated values), though the delimiter can be set to almost anything;
+we prefer pipes, $|$ .
+
 The tt(input) segment of the spec gives the name of the input
 file, and the name of the table that will be generated from that input.
-
-Unless you already have data in an SQLite database, all inputs are via plain text,
-typically called CSV files (for comma-separated values), though the delimiter can be set to almost
-anything; we prefer pipes, $|$ . 
 
 This spec file tells Tea to overwrite the tt(dc) table if it already exists. This can be
 useful for running an analysis from start to finish, but in most cases, the read-in is
@@ -211,14 +195,21 @@ tt(schl) is an integer from 1 to 24. Not all fields have to be specified, but it
 guarantee that SQLite doesn't treat the entries as text, and will be required when we get
 to editing.
 
+Spacing in the spec file is largely irrelevant, but each key:value pair must end with
+a newline (or the \} closing a group, though we think having the \} on its own line
+looks better). You will see some examples below where the expression is too long for
+one line, so lines are joined by ending the first line with a backslash.
+
 Now that we have specified the characteristics of the survey, we can move on to
 tt(hello.R), which makes use of that description:
 
 InR(hello)
 
 Items(
-    ∙ The first line, tt(library(tea)) loads Tea, and the second, tt(readSpec("hello.spec"))
-    reads the spec file. 
+    ∙ The first line, tt(library(tea)) loads Tea. All functions defined therein can now be
+        used at the R command line.
+
+    ∙ The second line reads the spec file, tt("hello.spec"). 
 
     ∙ At this point, the database is open, and Tea knows about all of
     the configuration options in the spec file. Thus, the tt(doInput()) function
@@ -226,21 +217,18 @@ Items(
     can all be read off from the spec.
 
     ∙ After tt(doInput()) runs, the requested table, tt(dc), exists in the database. The
-    tt(teaTable()) function pulls data from the database. In the example above, the first
-    use of tt(teaTable) prints to the screen, so we limit the number of columns to pull to 20,
-    and requests only three columns.
+    tt(teaTable()) function pulls data from the database into an R data frame. In the
+    example here, the first use of tt(teaTable) will print to the screen, so limit
+    the number of columns to pull to 20, and request only three columns.
 
     ∙ The second example uses R's tt(summary()) function to show the means and medians of the
     age and schooling categories.
-
-    ∙ Spacing is largely irrelevant, but each key:value pair must end with a newline (or
-        the \} closing a group, though we think it looks better with the \} on its own
-        line). You will see some examples below where the expression is too long for one
-        line, so lines are joined by ending the first line with a backslash.
 )
 
+We do not print the unremarkable output from running tt(hello.R), but you are encouraged
+to make sure that your Tea installation is working by running it yourself.
 
-Subsection(Subkeys~~subkeys)
+Section(Subkeys~~subkeys)
 Why does the first line of the spec file have to be a database? Because the first step in
 processing is to convert the spec file into a database table. The table is named tt(keys),
 and you can view it like any other:
@@ -261,8 +249,8 @@ The format of the tt(keys) table is subject to change, so please do not rely on 
 processing. However, it can be useful to check that the parser did what you expected.
 The tt(fields) and tt(checks) sections do not get encoded into this table, but every other
 key:value pair will get one row. Comparing this table to tt(hello.spec) shows how the
-keys embedded in a group are written via a group/key notation. So when you see
-tt(input/input file), this would have appeared in the spec as 
+keys embedded in a group are written via a tt(group/key) notation. For example,
+tt(input/input file) appeared in the spec as 
 
 SpecCode(
 input {
@@ -274,7 +262,7 @@ That said, here is an Link(http://rodri363.github.io/tea/keys.html~~alphabetical
 
 
 
-Section(Recodes~~recodesec)
+Chapter(Recodes~~recodesec)
 A em(recode) is a variable that is deterministically generated from another variable. The
 name comes from variables made via simple code switches, like taking three-digit race codes (100, 101,
 ..., 200, 201, ...) and reducing them to one-digit race codes (1, 2, ...). But
@@ -311,8 +299,8 @@ Items(
         So after the recode step, every observation will have a tt(hh_in) field giving the
 householder's income and a tt(house_in) field giving the total income for the household.
 
-    ∙ The householder income is the maximum over PINC for the householder (i.e., the person for whom tt(sporder==1)), and zero for 
-        everybody else, and thus gives the PINC for the householder. We use this form
+    ∙ Calculate the householder income by taking the maximum over PINC for the householder (i.e., the person for whom tt(sporder==1)) and zero for 
+        everybody else. We use this form
         often to pull the characteristics of one household member.
 
     ∙ If you think the Link(http://stackoverflow.com/questions/4622/sql-case-statement-syntax~~SQL syntax
@@ -323,8 +311,8 @@ householder's income and a tt(house_in) field giving the total income for the ho
         subsequent recode segments can refer to variables generated in previous segments. 
 
     ∙ Because SQL tt(case) statements are difficult to write, but recodes with an
-    if-then format are so common, Tea provides a special syntax for writing some recodes.
-    The tt(has_income) varible will be zero if tt(PINCP) is zero, and will be one in all
+    if-then format are so common, Tea provides a special syntax.
+    The tt(has_income) variable will be zero if tt(PINCP) is zero, and will be one in all
     other cases. The tt(age_cat) recode behaves similarly: if tt(AGEP <=15), then
     tt(age_cat) is set to zero, and so on. The tt(between) keyword is standard SQL,
     and is inclusive of the endpoints of the range. The default of tt(X) will be
@@ -344,7 +332,7 @@ Items(
     ∙ We can treat the new fields exactly like we do the ones supplied in the input data.
 
     ∙ Tea keeps a few variables in an R environment named tt(teaenv). The name of the table after the last step
-        is stored in Tt(teaenv\$active\_tab). If there were no
+        is stored in tt(teaenv$active_tab). If there were no
         recodes, this would be tt(dc); because there were recodes, this is tt(viewdc).
 
     ∙ The script gets the average log income and average tt(log_house_in), taking care to
@@ -361,7 +349,7 @@ Items(
 
 
 
-Section(Imputation~~impsec) 
+Chapter(Imputation~~impsec) 
 
 This section will begin with an overview of the many methods one could use to fill in a
 blank in a survey, and will then show how Tea implements them.
@@ -370,7 +358,7 @@ The first are what we will call mechanical edits, which are deterministic if-the
 rules.  For example, if a birth date is given but an age is not, then fill in the age
 by calculating the time span between the birth date and the survey.
 
-Paragraph(mechanical edits)
+Paragraph(Mechanical edits)
 Mechanical methods are best when there is a single correct answer that can be calculated
 from available information, such as in an accounting ledger where certain sets of numbers
 must add up to certain sums.
@@ -384,21 +372,20 @@ tt(PINC=0).
 
 People at extreme ends of a range, such as the exceptionally long-lived or the
 exceptionally high-income, are a disclosure avoidance risk, so statistical agencies often
-em(top code), changing all values above a threshold to the threshold itself. A top code is
-a mechanical edit, e.g., to set all people making over a million a year to exactly a
-million:
+em(top code), changing all values above a threshold to the threshold itself. To set
+the income of all people making over a million a year to exactly a million:
 
 SpecCode(PINC>1e6 => PINC=1e6)
 
 
-Some history and literature: \citet{edit:review} gives an overview of the problem of
+Some history and literature: Citet(edit:review) gives an overview of the problem of
 editing (including a useful glossary). The models covered in that paper are uniformly
 in the class of me\-chan\-i\-cal edits, including several implementations of the method
-of \citet{fellegi:holt} and deterministic nearest-neighbor methods, such as that used
-by \citet{garcia:balance}.
+of Citet(fellegi:holt) and deterministic nearest-neighbor methods, such as that used
+by Citet(garcia:balance).
 
 This thread has continued into the present day.
-\citet{chen:threesystems} discusses three newer systems, each of which focuses on
+Citet(chen:threesystems) discusses three newer systems, each of which focuses on
 determining the cause of the error and imputing accordingly: the editing system for the
 American Community Survey (ACS, from the US Census Bureau) consists of a long sequence
 of if-then rules that specify what substitutions are to be made given every type of
@@ -406,8 +393,8 @@ failure; the DISCRETE system Citep(winkler:discrete) uses Fellegi-Holt's method 
 derive imputation rules from the edits; what is now CANCEIS Citep(bankir:canceis) uses
 a relatively sophisticated nearest-neighbor rule for imputation.
 
-Paragraph(probabilistic edits)
-The next class of imputations are probabilistic. These assert some underlying distribution
+Paragraph(Probabilistic edits)
+Probabilistic edits assert some underlying distribution
 or model to the variables, and fill in a missing value by making a draw (sometimes
 multiple) from the underlying distribution.
 
@@ -443,7 +430,7 @@ distribution, akin to the univariate Hot Deck distribution.
 Paragraph(Categories)
 There is a broad intuition that imputed values should be taken from records `close' to the
 one missing information, perhaps in the physical sense, or in a broader sense, like
-how we expect an apartment dweller to be like another apartment dweller than a similar person
+how we expect an apartment dweller to be more like another apartment dweller than a similar person
 living in a single-family house, em(ceteris paribus).
 
 Tea thus provides a mechanism to do imputations by categories. Given this part in the
@@ -465,7 +452,7 @@ observations in the tt(income_cat) $\times$ tt(sex) $\times$ tt(puma) category t
 then the last categorization in the list is thrown out, and the model fit using
 tt(income_cat) $\times$ tt(sex). The roll-up could continue until there are no categories
 left, in which case the entire data set is used. Set the minimum group size before
-a roll-up via an tt(impute/min group size) key.
+a roll-up occurs via an tt(impute/min group size) key.
 
 Comment(
 The EM algorithm handles continuous variables internally (see below), but most
@@ -475,34 +462,49 @@ tt(income_cat) recode above, to group the continuous variable into ranges.
 
 
 Paragraph(Imputing incomes~~incimp)
-To give a working example, let us impute missing incomes---three ways.
+The following example imputes missing incomes using two methods.
 
 The sample data used in this tutorial is already-cleaned public use data, so the only
 missing incomes are for people under 15 (who all have missing income, which tells us
-that the ACS probably has an edit of the form tt(age<=15 => PINCP=NULL)). So the R
+that the ACS probably has an edit akin to tt(age<=15 => PINCP=NULL)). So the R
 script will first record the original distribution as reported by the Census, then
-blank out about 10\% of the incomes, then try the various imputation methods in the
-spec file.  Here is the spec file, with three imputation methods:
+blank out the incomes of about 30\% of respondents (probably including a good number
+of already-blank under-15s), then try the various imputation methods in the spec file.
+Here is the spec file, with two imputation methods:
 
 InSpec(incomes)
 
+The spec uses two features to reduce redundancy.
+Items(
+∙ At the top of the file, the tt(include) line tells the parser to paste the full contents
+of the listed file  into the current file at this point. We can thus
+reuse all of the declarations and consistency checks listed in
+tt(recode.spec) above.
 
-This is a tutorial consisting of simple demo code, so we make no promises that this
+∙ The tt(paste in) lines do a similar thing, but for groups. In this case, Tt(paste in:
+   common) instructs the parser to find the group defined to that point with the name
+tt(common) and insert all key/value pairs defined in that group at this point. This makes
+it easy to write two imputations that have most of their specification in common.
+)
+
+Please note:
+this is a tutorial consisting of simple demo code, so we make no promises that this
 is a good model for imputing missing data. There are not yet any Census surveys that
 use these techniques for income imputation.  But we do believe that the spec format
 makes the assumptions underlying the imputation clear, and provides an easy means of
 quickly trying different models.
 
-After every value is imputed, the edits are checked. So far, this spec only has one
-edit: that if tt(has_income=0 and PINC is null) then set (PINC=0). This guarantees
-us that at the end of the imputation of tt(has_income), the only people with incomes
-marked as missing are those who are imputed as having a nonzero income.
+After every value is imputed, the edits are checked. Above, you saw that tt(recodes.spec)
+has an edit specifying that if tt(has_income=0 and PINC is null) then set (PINC=0). This
+guarantees us that at the end of the imputation of tt(has_income), the only people
+with incomes marked as missing are those who are imputed as having a nonzero income.
+
 
 
 Paragraph(Check out any time you like)
-Tea is intended for multiple imputation, either in the formal sense
-(see, e.g., Citet(schafer:multi~~Schafer)) or in the sense here, of multiple models used
-on the same data set.
+Tea is intended for multiple imputation, either in the formal sense (see, e.g.,
+Citet(schafer:multi~~Schafer)) or in the sense of this example, where multiple models
+are used on the same data set.
 
 To facilitate this, imputations are not written to the tt(input table) specified in the
 tt(impute) section, but to a separate tt(output table).  For the tt(has_income) variable,
@@ -523,12 +525,13 @@ TeX(\end{verbatim})
 HTML(<|)|>)
 
 Each id/field coordinate in the original table that has an imputed value will have a row
+(or rows)
 in the fill-in table. Here only one draw was made per imputed value, so the tt(draw)
 column is all zeros; if you specify tt(draw count) to be greater than one, then this will
 take appropriate values.
 
 This is the output for the imputation of tt(has_income),
-but because the edit rules specify that tt((has_income=0, PINCP=NULL)) is an inconsistent
+but because the edit rules specify that tt((has_income=0 and PINCP is NULL)) is an inconsistent
 value, the fill-in table also specifies cases where PINCP has to be adjusted to maintain
 consistency.
 
@@ -540,11 +543,10 @@ outdata <- teaTable("complete_tab")
 )
 
 One imputation often follows another. Here, the model of income depends on the
-tt(has_income) variable, so we have to impute tt(has_income) first. Imputations are done
-in the sequence listed in the spec file. Use the tt(earlier output table) key in an
-tt(impute) group to specify
-a table of fill-ins to be checked out before embarking on the imputation described by this
-group.
+tt(has_income) variable, so we have to impute tt(has_income) first. Imputations are
+done in the sequence listed in the spec file. Use the tt(earlier output table) key in
+an tt(impute) group to specify a table of fill-ins to be checked out before embarking
+on the imputation described by this group.
 
 If you want to not bother with a fill-in table and write imputations directly to the
 input table, add the tt(autofill) key to an imputation.
@@ -554,52 +556,67 @@ Paragraph(R code for imputing income)
 Here is some R code to 
 
 Items(
-∙ Blank out some incomes.
+∙ Blank out some incomes, adjusting and saving the data before doing so.
 ∙ Do the several imputations as per the spec file above, via tt(doMImpute).
 ∙ Check out the imputations in sequence, bind them together, and plot the several log income
 distributions on one plot.
-
 )
 
+This tutorial will not go into detail regarding the especially R-heavy portions of
+the code, such as how the tt(ggplot2) package was used to generate the final plot, though
+the comments give a sketch of what the code is doing.
 
 InR(incomes)
 
+TeX(Figure) Ref(The figure~~log_wageplotspic) presents the final graphic. The data
+used for imputation is not pictured, but hot deck makes draws from that distribution,
+so the hot deck curve could be read as the post-cut data set. The imputation using a
+lognormal distribution produces a distribution that is lower at the peak and smooths
+out some of the inflection points in the data.
+
+If we believe that people at extremes of the income spectrum are underrepresented in the
+complete data, then the fact that Hot Deck simply replicates the nonmissing data may not
+be desirable.
 
 
+Pic(log_wageplots.png~~Log wages from the data and imputed using Hot Deck and a Normal distribution.~~90~~.5)
 
-Section(Editing~~editsec) 
+
+Chapter(Editing~~editsec) 
 
 Edits go in the tt(checks) segment of the spec. You already saw examples above, in the
 form of the mechanical edits:
 
 SpecCode(checks {
-    has_income=0 and PINC is null => PINC=0
-    PINC>1e6 => PINC=1e6
+    has_income=0 and PINC is null => PINCP=0
 
-    PINC<0
+    PINCP>1e6 => PINC=1e6   # top code
+
+    PINCP+0.0<0
 })
 
 
-Something about edits being pessimistic here.
+Note that edits are pessimstic: put the event that would cause a failure in the tt(checks)
+section of the spec (e.g., tt(PINCP<0)), not the condition that you would like to see
+remain true (e.g., tt(PINCP>=0)).
 
-
-    
-Comment(
-We begin with mechanical edits, in which each failure has a
-deterministic fix. As discussed above, for surveys designed in decades past, this is
-the predominant means of editing.
-)
-
+You already saw that the imputations always check their results against the edits. For
+example, a Normal distribution could easily generate negative incomes, but Tea checks
+every draw against every consistency check, and throws away and redraws any that fail.
 
 
 
+How to run the edits outside the context of an imputation here.
 
-Section(Disclosure avoidance~~dasec)
 
-Section(Synthetic data~~synthsec)
+
+
+Chapter(Disclosure avoidance~~dasec)
+
+Chapter(Synthetic data~~synthsec)
 em(Raking) is a method of producing a table of cells consistent with a given list of margins.
 For example, we may require that any data set we produce have an age $\times$ race
-$\times$ ethnicity distribution and a sex $\times age$ distribution that exactly
+$\times$ ethnicity distribution and a sex $\times$ age distribution that exactly
 matches the complete data in a census.
 
 Raking is a simple method by which the values in the survey table can be incrementally
@@ -608,7 +625,7 @@ divergence; then the raked table is the closest table to the original data subje
 the constraints of the row and column totals specified by the census.
 
 Given more dimensions, we may want certain sets of dimensions to match a reference, such
-as requiring all (block) $\times$ (sex) categories to fit to the reference values.
+as requiring all block $\times$ sex categories to fit to the reference values.
 
 But consider the case where there was no survey; we can begin with a `noninformative'
 table in which all cells are filled with ones, and rake that to the closest table that
@@ -625,6 +642,89 @@ table.
 
 
 
+
+Chapter(Appendix: additional info~~appendices)
+Here are some additional notes about using Tea and its attendant tools.
+
+Section(Ways of expressing missing data) Because Tea is about dealing with missing data, it
+may be worth getting to know how various systems express missingness.
+
+Items(
+∙ SQL has a tt(NULL) marker.
+∙ The IEEE floating-point standard has a not-a-number (NaN) marker (in fact, billions of NaN markers).
+∙ R has an NA marker distinct from its NaN marker.
+)
+
+These are explicit markers of missingess that can not be mistaken for erroneous values.
+It is easy to find systems that use ad hoc markers to represent missingness, including zero, -1, an
+empty string, and so on, especially in older systems that predate the IEEE standard
+(first published in 1985).  We recommend using the tt(input/missing marker) key to specify
+this ad hoc value; Tea will then read elements intended as blanks into the database as tt(NULL).
+
+The IEEE 754 standard specifies a tt(NaN) marker to represent math errors such as
+Tt(0./0.), and this is often used to represent missing data.Footnote(The standard also
+states that Tt(1./0.) produces Tt(INFINITY) and Tt(-1./0.) produces Tt(-INFINITY).)
+
+Comparison to tt(NaN) em(always) fails---the standard specifies that even tt(a==a)
+is false if tt(a) is tt(NaN). Therefore, there are functions to use to check for
+missingness. in SQL, 
+SpecCode(a is null
+or
+a is not null) are correct ways to check for
+missings or nonmissings. Note that SQLite allows either tt(NULL) or tt(null). In R
+RCode(is.na(a)) will check whether tt(a) is tt(NaN).
+
+
+Especially careful readers will note that using tt(NaN) as a missingness marker is
+potentially ambiguous: a tt(NaN) could represent truly missing data or
+it could represent the result of dividing a nonmissing zero by another nonmissing
+zero. Thus, R has an tt(NA) marker, which is distinct from its tt(NaN) marker.
+The authors of this document have surveyed R users, including the authors of some
+popular packages, and have not found a single user who takes care to preserve the
+distinction between tt(NaN) and tt(NA) in practice. Note that tt(NaN)s are a subset
+of tt(NA)s, not the other way around:
+
+RCode(
+> a<-NaN
+> is.na(a)
+[1] TRUE
+
+
+> b<-NA
+> is.nan(b)
+[1] FALSE)
+
+Therefore, we recommend using the shorter tt(is.na), which catches both tt(NA)s and tt(NaN)s.
+
+See also Link(http://modelingwithdata.org/arch/00000132.htm~~this blog post) for bit-level
+discussion of the types of tt(NaN).
+
+
+Section(Using m4 to reduce repetition)
+
+
+
+Section(Citing Tea) To date, the only formal publication describing Tea is a UN
+proceedings paper Citep(klemens:tea), so until we get out more publications it is may
+be the best option when citing Tea in an academic paper:
+
+SpecCode(
+@inproceedings{klemens:tea,
+    author={Ben Klemens},
+    title= {Tea for Survey Processing},
+    booktitle={Proceedings of the Conference of European Statisticians},
+    chapter={Working paper 29},
+    crossref={UNECE12}
+}
+
+@proceedings{UNECE12,
+    title={Proceedings of the Conference of European Statisticians},
+    series={Work Session on Statistical Data Editing},
+    organization={United Nations Economic Commission for Europe},
+    year=2012,
+    month=Sep
+}
+)
 
 
 
@@ -1888,4 +1988,3 @@ Keys are listed using the tt(group/key/value) notation described in Section Ref(
 
 
 )
-

@@ -2,21 +2,29 @@ library(tea)
 readSpec("incomes.spec")
 doInput()
 
+
+#To prevent a million log(0) errors, give everybody $10
+dbGetQuery(teaenv$con, "update viewdc set pincp=pincp+10")
+
 # Dirty up the data by blanking out 30% of incomes
 try(dbGetQuery(teaenv$con, "drop table precut"))
-dbGetQuery(teaenv$con, "create table precut as select * from dc")
-table_len <-dbGetQuery(teaenv$con, "select count(*) from dc")[[1]]
+dbGetQuery(teaenv$con, "create table precut as select * from viewdc")
+table_len <-dbGetQuery(teaenv$con, "select count(*) from viewdc")[[1]]
 rowids <- floor(runif(table_len*.30)*table_len)
 
 lapply(rowids, function(row){
        dbGetQuery(teaenv$con, paste("update viewdc set pincp=NULL where rowid=", row))
 })
 
+# A hack; automatic editing like this is introduced below.
+dbGetQuery(teaenv$con, "update viewdc set PINCP=null where PINCP<0")
+
 
 doMImpute()
 
 
-
+# A function to use checkOutImpute to get imputed PINCPs and save them
+# in a format amenable to the plotting routine
 getOne <-function(method, fillins){
     filledtab <- paste(fillins, "fill", sep="")
     checkOutImpute(teaenv$active_tab, filledtab, filltab=fillins,
@@ -27,9 +35,13 @@ getOne <-function(method, fillins){
     return(outframe)
 }
 
+# The data sets in this function are two-column: the first 
+# is the observed value, and the second is the name of the method.
+# Put the two imputations and the original data in that format,
+# then send to ggplot.
 plotWage <- function(outname){
-    dfhd <- getOne("hot deck", "hd")
-    dfnorm <- getOne("Gaussian", "norm")
+    dfhd <- getOne("Hot Deck", "hd")
+    dfnorm <- getOne("Lognormal", "norm")
 
     dfdc <-teaTable("precut", cols="PINCP", where="PINCP is not null")
     dfdc$PINCP <- log10(dfdc$PINCP+10) #+ runif(length(dfdc$PINCP))

@@ -34,7 +34,7 @@ impute {
 impute {
     vars: PINCP
     paste in: common
-    method: normal
+    method: lognormal
     output table: norm
 }
 

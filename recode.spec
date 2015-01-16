@@ -22,7 +22,8 @@ recodes {
 group recodes {
    group id: serialno
    hh_in: max(case sporder when 1 then log_in else 0 end)
-   house_in: sum(case when PINCP is not null and PINCP > 0 then PINCP else 0 end)
+   house_in: sum(case when PINCP is not null \
+                      and PINCP > 0 then PINCP else 0 end)
 }
 
 recodes {
@@ -45,5 +46,5 @@ recodes {
 checks {
     has_income=0 and PINCP is null => PINCP=0
 
-    PINCP < 0
+    PINCP +0.0 < 0
 }
