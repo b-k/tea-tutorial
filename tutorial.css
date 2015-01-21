@@ -4,7 +4,7 @@ BODY {
 font-family: Georgia, "Times New Roman", Times, Serif;
 /*background-color: #c5d8eF; 
 background-color: #f4f4bc; 
-background-color:#e5e5db;*/
+background-color:#e5e5db;
 background-color:#f5f5eb;*/
 
 }
@@ -44,20 +44,9 @@ margin-top: 3px;
 margin-bottom: 3px;
 }
 
-.dkblue {/* Oh, regret. It's not blue anymore.
-		background-color:  #c9d8f9; */
-		/* yellow
-		background-color: #ececae; 
-		*/
-		background-color: #ececde; 
-		}
-.ltblue {
-		/*background-color:  #d5e4ff; */
-		/* yellow
-		background-color: #ffff90;
-		*/
-		background-color: #eeeee0; 
-		}
 
 #list li { list-style-type: circle; }
 
+p, ul, ol, blockquote {
+    font-size: 1.125rem;
+}
