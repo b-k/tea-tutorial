@@ -27,15 +27,27 @@ Tea is a statistical library designed to eradicate these errors via a framework
 that is user-friendly, effectively handles Census-sized data sets, and processes
 quickly even with relatively sophisticated methods.</p>
 
-<p>Tea implements a two step process for addressing issues with raw data. The first is to
-identify failures—missing data, logical errors, or sensitive
-information—and then, having identified problem data, impute new values
-to replace the old ones. Although the term <em>imputation</em> is typically used only to 
-describe filling in missing data, we use it broadly to mean any modification of a 
-data item that involves choosing among alternatives, regardless of which of the 
-above failures prompted the fill-in. </p>
+<h6>Some sample use cases</h6><p>
+<ul>
+            <li> A record is missing age, so it gets sent to the imputation module to draw values of
+age given schooling (if available for the record) and neighborhood characteristics. Did
+the imputation generate a married 12-year old? Each draw is sent to the editing module to 
+verify every consistency check provided by the user, and strike out failures.</p>
 
-<p>This tutorial provides a detailed overview of the Tea system, its components, and their usage.</p>
+</li>
+            <li> One record might be for a 110-year old. This is distinctive enough that publishing a table
+of incomes by age might publicly reveal this person's income. Tea provides a module for
+finding distinctive cases and blanking out the most distinctive characteristic. Of course,
+the record then needs to be sent to imputation, and the imputed value(s) need to be
+edited.</p>
+
+</li>
+            <li> Crosstabs giving age $\times$ race $\times$ income and are cleared for
+disclosure concerns, but users want to use statistical techniques based on record-level
+data, not crosstabs. Tea's raking module generates a synthetic data set that is as close
+as possible to the constraint of the crosstab (and, of course, meets all constraints).</p>
+
+<p>        </li></ul></p>
 
 <p>You can also read <a href="http://ben.klemens.org/pdfs/tea_tutorial.pdf">this tutorial as a PDF</a>.</p>
 
@@ -68,7 +80,7 @@ like <tt>is_heterosexual_marriage</tt> calculated from the sex of the spouses, o
     of individual respondents.</p>
 
 <p>    </li>
-            <li> AnTeX(The Appendix in Section) <a href="#appendices">appendix</a> provides some
+            <li> An  <a href="#appendices">appendix</a> provides some
     other useful information, including some notes on missingess markers in various
     systems and a suggestion on how to cite Tea in your papers.</p>
 
@@ -177,7 +189,7 @@ an SQLite expert, you can view or modify this database using your favorite SQLit
 <p>If your data is already in an SQLite database, then you can skip the <tt>input</tt> step, but
 in typical cases your data will be in a plain text file. These are typically called CSV
 files (for comma-separated values), though the delimiter can be set to almost anything;
-we prefer pipes, $|$ .</p>
+we prefer pipes, | .</p>
 
 <p>The <tt>input</tt> segment of the spec gives the name of the input
 file, and the name of the table that will be generated from that input.</p>
@@ -185,12 +197,14 @@ file, and the name of the table that will be generated from that input.</p>
 <p>This spec file tells Tea to overwrite the <tt>dc</tt> table if it already exists. This can be
 useful for running an analysis from start to finish, but in most cases, the read-in is
 time-consuming and most later operations will not modify the source data, so the default
-if the input segment has no <tt>overwrite</tt> key is to assume <tt>overwrite: no</tt>.</p>
+if the input segment has no <tt>overwrite</tt> key is to assume <tt>overwrite: no</tt>. More on this
+below.</p>
 
 <p>The spec also includes a section describing two of the fields: <tt>age</tt> is a real number, and
 <tt>schl</tt> is an integer from 1 to 24. Not all fields have to be specified, but it helps to
 guarantee that SQLite doesn't treat the entries as text, and will be required when we get
-to editing.</p>
+to editing. You can have one <tt>fields</tt> section for every table, or several which will be
+treated as a single unit.</p>
 
 <p>Spacing in the spec file is largely irrelevant, but each key:value pair must end with
 a newline (or the \} closing a group, though we think having the \} on its own line
@@ -414,9 +428,10 @@ print(dbGetQuery(teaenv$con, "select avg(log_house_in) from \
             <li> We can treat the new fields exactly like we do the ones supplied in the input data.</p>
 
 <p>    </li>
-            <li> Tea keeps a few variables in an R environment named <tt>teaenv</tt>. The name of the table after the last step
-        is stored in <tt>teaenv$active_tab</tt>. If there were no
-        recodes, this would be <tt>dc</tt>; because there were recodes, this is <tt>viewdc</tt>.</p>
+            <li> Tea keeps a few variables in an R environment named <tt>teaenv</tt>. The name of
+        the table after the last step is stored in <tt>teaenv$active_tab</tt>. If there
+        were no recodes, this would be <tt>dc</tt>; because there were recodes, this is
+        <tt>viewdc</tt>. More on tracking the flow of tables below.</p>
 
 <p>    </li>
             <li> The script gets the average log income and average <tt>log_house_in</tt>, taking care to
@@ -431,6 +446,32 @@ print(dbGetQuery(teaenv$con, "select avg(log_house_in) from \
         in the <tt>teaenv</tt> environment, stored as <tt>teanev$con</tt>.</p>
 
 <p>        </li></ul></p>
+
+<h6>The flow of inputs and outputs</h6><p></p>
+
+<p>With a few exceptions, every segment can have <tt>input table</tt>, <tt>overwrite</tt>, and
+<tt>output table</tt> keys. Keeping track of these things will become important as more
+segments are added and if multiple tables are being used.</p>
+
+<p>If these keys are not given, the output table from the previous segment of the spec will
+be used as the input table for the next segment.</p>
+
+<p>If you do not specify the output from the recodes, then the output table name at the
+end of a sequence of recodes is the input table name with <tt>view</tt> at the front. E.g.,
+<tt>intab</tt> $\to$ <tt>viewintab</tt>.</p>
+
+<p>The imputation uses <tt>filled</tt> as the default output table name, but you are encouraged to
+use something else.</p>
+
+<p>The flow is thus typically a chain of steps, like input $\to$ recode $\to$ join with
+another table $\to$ impute. If you give an instruction to overwrite input every time,
+then the recode, join, and impute steps will also rebuild their output tables. If
+you remove the input table (SQL: <tt>"drop table read_in_data"</tt>) then the table will
+be re-read and all subsequent steps rerun.  The exceptions: <tt>checks</tt> and <tt>fields</tt>
+apply to all tables, the <tt>input</tt> segment takes an <tt>input file</tt>, and the imputations
+are always re-run.</p>
+
+<p>As above, the R variable <tt>teaenv$active_tab</tt> keeps track of the latest output table.</p>
 
 <p><a name="impsec"><h1>Imputation</h1></a><p> </p>
 
@@ -460,14 +501,14 @@ the income of all people making over a million a year to exactly a million:</p>
 
 <div class="spec"><pre><code>PINC>1e6 => PINC=1e6</code></pre></div>
 
-<p>Some history and literature: <a href="#edit:review"></a> gives an overview of the problem of
+<p>Some history and literature: <a href="#edit:review">Pierzchala</a> gives an overview of the problem of
 editing (including a useful glossary). The models covered in that paper are uniformly
-in the class of me\-chan\-i\-cal edits, including several implementations of the method
-of <a href="#fellegi:holt"></a> and deterministic nearest-neighbor methods, such as that used
-by <a href="#garcia:balance"></a>.</p>
+in the class of mechanical edits, including several implementations of the method
+of <a href="#fellegi:holt">Fellegi and Holt</a> and deterministic nearest-neighbor methods, such as that used
+by <a href="#garcia:balance">García</a>.</p>
 
 <p>This thread has continued into the present day.
-<a href="#chen:threesystems"></a> discusses three newer systems, each of which focuses on
+<a href="#chen:threesystems">Chen</a> discusses three newer systems, each of which focuses on
 determining the cause of the error and imputing accordingly: the editing system for the
 American Community Survey (ACS, from the US Census Bureau) consists of a long sequence
 of if-then rules that specify what substitutions are to be made given every type of
@@ -753,7 +794,7 @@ out some of the inflection points in the data.</p>
 complete data, then the fact that Hot Deck simply replicates the nonmissing data may not
 be desirable.</p>
 
-<p><a name="log_wageplotspic"><img src="log_wageplots.png" alt="Log wages from the data and imputed using Hot Deck and a Normal distribution." width="90%"></a></p>
+<p>Pic(log_wageplots.png,Log wages from the data and imputed using Hot Deck and a Normal distribution.,90,.5)</p>
 
 <p><a name="editsec"><h1>Editing</h1></a><p> </p>
 
@@ -829,8 +870,8 @@ empty string, and so on, especially in older systems that predate the IEEE stand
 this ad hoc value; Tea will then read elements intended as blanks into the database as <tt>NULL</tt>.</p>
 
 <p>The IEEE 754 standard specifies a <tt>NaN</tt> marker to represent math errors such as
-<tt>0./0.</tt>, and this is often used to represent missing data.
-<a name="fnsrc_1"><a href="#note_1"><sup>1</sup></a></a></p>
+<tt>0./0.</tt>, and this is often used to represent missing data.Footnote(The standard also
+states that <tt>1./0.</tt> produces <tt>INFINITY</tt> and <tt>-1./0.</tt> produces <tt>-INFINITY</tt>.)</p>
 
 <p>Comparison to <tt>NaN</tt> <em>always</em> fails—the standard specifies that even <tt>a==a</tt>
 is false if <tt>a</tt> is <tt>NaN</tt>. Therefore, there are functions to use to check for
@@ -887,9 +928,6 @@ be the best option when citing Tea in an academic paper:</p>
     month=Sep
 }
 </code></pre></div>
-
-<p><a name="note_1"><a href="#fnsrc_1">1</a></a>. The standard also
-states that <tt>1./0.</tt> produces <tt>INFINITY</tt> and <tt>-1./0.</tt> produces <tt>-INFINITY</tt>.<br></p>
 
 <p></P>
 </body></html>
