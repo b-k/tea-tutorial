@@ -794,7 +794,7 @@ out some of the inflection points in the data.</p>
 complete data, then the fact that Hot Deck simply replicates the nonmissing data may not
 be desirable.</p>
 
-<p>Pic(log_wageplots.png,Log wages from the data and imputed using Hot Deck and a Normal distribution.,90,.5)</p>
+<p><a name="log_wageplotspic"><img src="log_wageplots.png" alt="Log wages from the data and imputed using Hot Deck and a Normal distribution." width="90%"></a></p>
 
 <p><a name="editsec"><h1>Editing</h1></a><p> </p>
 
@@ -870,8 +870,7 @@ empty string, and so on, especially in older systems that predate the IEEE stand
 this ad hoc value; Tea will then read elements intended as blanks into the database as <tt>NULL</tt>.</p>
 
 <p>The IEEE 754 standard specifies a <tt>NaN</tt> marker to represent math errors such as
-<tt>0./0.</tt>, and this is often used to represent missing data.Footnote(The standard also
-states that <tt>1./0.</tt> produces <tt>INFINITY</tt> and <tt>-1./0.</tt> produces <tt>-INFINITY</tt>.)</p>
+<tt>0./0.</tt>, and this is often used to represent missing data.<a name="fnsrc_1"><a href="#note_1"><sup>1</sup></a></a></p>
 
 <p>Comparison to <tt>NaN</tt> <em>always</em> fails—the standard specifies that even <tt>a==a</tt>
 is false if <tt>a</tt> is <tt>NaN</tt>. Therefore, there are functions to use to check for
@@ -928,6 +927,11 @@ be the best option when citing Tea in an academic paper:</p>
     month=Sep
 }
 </code></pre></div>
+
+<p><hr width="15%" align="left"></p>
+
+<p><a name="note_1"><a href="#fnsrc_1">1</a></a>. The standard also
+states that <tt>1./0.</tt> produces <tt>INFINITY</tt> and <tt>-1./0.</tt> produces <tt>-INFINITY</tt>.<br></p>
 
 <p></P>
 </body></html>
