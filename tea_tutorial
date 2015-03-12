@@ -41,15 +41,25 @@ Tea is a statistical library designed to eradicate these errors via a framework
 that is user-friendly, effectively handles Census-sized data sets, and processes
 quickly even with relatively sophisticated methods.
 
-Tea implements a two step process for addressing issues with raw data. The first is to
-identify failures---missing data, logical errors, or sensitive
-information---and then, having identified problem data, impute new values
-to replace the old ones. Although the term em(imputation) is typically used only to 
-describe filling in missing data, we use it broadly to mean any modification of a 
-data item that involves choosing among alternatives, regardless of which of the 
-above failures prompted the fill-in. 
+Paragraph(Some sample use cases)
+Items(
+∙ A record is missing age, so it gets sent to the imputation module to draw values of
+age given schooling (if available for the record) and neighborhood characteristics. Did
+the imputation generate a married 12-year old? Each draw is sent to the editing module to 
+verify every consistency check provided by the user, and strike out failures.
 
-This tutorial provides a detailed overview of the Tea system, its components, and their usage.
+∙ One record might be for a 110-year old. This is distinctive enough that publishing a table
+of incomes by age might publicly reveal this person's income. Tea provides a module for
+finding distinctive cases and blanking out the most distinctive characteristic. Of course,
+the record then needs to be sent to imputation, and the imputed value(s) need to be
+edited.
+
+∙ Crosstabs giving age $\times$ race $\times$ income and are cleared for
+disclosure concerns, but users want to use statistical techniques based on record-level
+data, not crosstabs. Tea's raking module generates a synthetic data set that is as close
+as possible to the constraint of the crosstab (and, of course, meets all constraints).
+)
+
 
 HTML(You can also read Link(http://ben.klemens.org/pdfs/tea_tutorial.pdf~~this tutorial as a PDF).)
 TeX(You can also read this tutorial in your browser at \url{http://b-k.github.io/tea-tutorial/}.)
@@ -83,7 +93,7 @@ like tt(is_heterosexual_marriage) calculated from the sex of the spouses, or log
     data. This is useful for running bootstrap-style tests and protecting the identities
     of individual respondents.
 
-    ∙ HTML(An)TeX(The Appendix in Section) Ref(appendix~~appendices) provides some
+    ∙ HTML(An) TeX(The Appendix in Section) Ref(appendix~~appendices) provides some
     other useful information, including some notes on missingess markers in various
     systems and a suggestion on how to cite Tea in your papers.
 )
@@ -180,7 +190,7 @@ an SQLite expert, you can view or modify this database using your favorite SQLit
 If your data is already in an SQLite database, then you can skip the tt(input) step, but
 in typical cases your data will be in a plain text file. These are typically called CSV
 files (for comma-separated values), though the delimiter can be set to almost anything;
-we prefer pipes, $|$ .
+we prefer pipes, | .
 
 The tt(input) segment of the spec gives the name of the input
 file, and the name of the table that will be generated from that input.
@@ -188,12 +198,14 @@ file, and the name of the table that will be generated from that input.
 This spec file tells Tea to overwrite the tt(dc) table if it already exists. This can be
 useful for running an analysis from start to finish, but in most cases, the read-in is
 time-consuming and most later operations will not modify the source data, so the default
-if the input segment has no tt(overwrite) key is to assume tt(overwrite: no).
+if the input segment has no tt(overwrite) key is to assume tt(overwrite: no). More on this
+below.
 
 The spec also includes a section describing two of the fields: tt(age) is a real number, and
 tt(schl) is an integer from 1 to 24. Not all fields have to be specified, but it helps to
 guarantee that SQLite doesn't treat the entries as text, and will be required when we get
-to editing.
+to editing. You can have one tt(fields) section for every table, or several which will be
+treated as a single unit.
 
 Spacing in the spec file is largely irrelevant, but each key:value pair must end with
 a newline (or the \} closing a group, though we think having the \} on its own line
@@ -331,9 +343,10 @@ Items(
 
     ∙ We can treat the new fields exactly like we do the ones supplied in the input data.
 
-    ∙ Tea keeps a few variables in an R environment named tt(teaenv). The name of the table after the last step
-        is stored in tt(teaenv$active_tab). If there were no
-        recodes, this would be tt(dc); because there were recodes, this is tt(viewdc).
+    ∙ Tea keeps a few variables in an R environment named tt(teaenv). The name of
+        the table after the last step is stored in tt(teaenv$active_tab). If there
+        were no recodes, this would be tt(dc); because there were recodes, this is
+        tt(viewdc). More on tracking the flow of tables below.
 
     ∙ The script gets the average log income and average tt(log_house_in), taking care to
         add a condition to only get those records where that sum is not tt(-Inf).
@@ -347,6 +360,31 @@ Items(
 )
 
 
+Paragraph(The flow of inputs and outputs)
+
+With a few exceptions, every segment can have tt(input table), tt(overwrite), and
+tt(output table) keys. Keeping track of these things will become important as more
+segments are added and if multiple tables are being used.
+
+If these keys are not given, the output table from the previous segment of the spec will
+be used as the input table for the next segment.
+
+If you do not specify the output from the recodes, then the output table name at the
+end of a sequence of recodes is the input table name with tt(view) at the front. E.g.,
+tt(intab) $\to$ tt(viewintab).
+
+The imputation uses tt(filled) as the default output table name, but you are encouraged to
+use something else.
+
+The flow is thus typically a chain of steps, like input $\to$ recode $\to$ join with
+another table $\to$ impute. If you give an instruction to overwrite input every time,
+then the recode, join, and impute steps will also rebuild their output tables. If
+you remove the input table (SQL: tt("drop table read_in_data")) then the table will
+be re-read and all subsequent steps rerun.  The exceptions: tt(checks) and tt(fields)
+apply to all tables, the tt(input) segment takes an tt(input file), and the imputations
+are always re-run.
+
+As above, the R variable tt(teaenv$active_tab) keeps track of the latest output table.
 
 
 Chapter(Imputation~~impsec) 
@@ -378,14 +416,14 @@ the income of all people making over a million a year to exactly a million:
 SpecCode(PINC>1e6 => PINC=1e6)
 
 
-Some history and literature: Citet(edit:review) gives an overview of the problem of
+Some history and literature: Citet(edit:review~~Pierzchala) gives an overview of the problem of
 editing (including a useful glossary). The models covered in that paper are uniformly
-in the class of me\-chan\-i\-cal edits, including several implementations of the method
-of Citet(fellegi:holt) and deterministic nearest-neighbor methods, such as that used
-by Citet(garcia:balance).
+in the class of mechanical edits, including several implementations of the method
+of Citet(fellegi:holt~~Fellegi and Holt) and deterministic nearest-neighbor methods, such as that used
+by Citet(garcia:balance~~García).
 
 This thread has continued into the present day.
-Citet(chen:threesystems) discusses three newer systems, each of which focuses on
+Citet(chen:threesystems~~Chen) discusses three newer systems, each of which focuses on
 determining the cause of the error and imputing accordingly: the editing system for the
 American Community Survey (ACS, from the US Census Bureau) consists of a long sequence
 of if-then rules that specify what substitutions are to be made given every type of
@@ -489,8 +527,8 @@ it easy to write two imputations that have most of their specification in common
 
 Please note:
 this is a tutorial consisting of simple demo code, so we make no promises that this
-is a good model for imputing missing data. There are not yet any Census surveys that
-use these techniques for income imputation.  But we do believe that the spec format
+is a good model for imputing missing data. We do not know of any Census surveys that
+use these models for income imputation. But we do believe that the spec format
 makes the assumptions underlying the imputation clear, and provides an easy means of
 quickly trying different models.
 
@@ -580,6 +618,66 @@ be desirable.
 
 
 Pic(log_wageplots.png~~Log wages from the data and imputed using Hot Deck and a Normal distribution.~~90~~.5)
+
+Chapter(Imputation with auxiliary data~~emsec)
+
+Consider two data sets that ostensibly measure the same thing, such as American Community
+Survey income questions and and income questions on tax returns. The biases and
+assumptions underlying both questions are slightly different. People have a strong
+incentive to understate taxable income, or might treat exceptional circumstances
+differently between the two. But we have a strong expectation that the two are closely
+correlated.
+
+In such a situation, we can expect that for some respondents, we have both observations,
+for some only one or the other, and for some we have neither.
+
+Tea has an implementation of the expectation-maximization algorithm by Citet(hartley:em~~hartley), popularized in Citet(rubin:implementation~~Rubin).
+The end result in our two-income example is a table with ACS incomes on the rows and
+IRS incomes on the colums. We expect that most observations will be along the main
+diagonal where ACS income equals IRS income.
+
+Given a person with a known IRS income, we can impute their ACS income by taking the
+appropriate column and making a random draw from the density in that column. For somebody
+with no income data, we can make a draw from the entire table.
+
+This method has several advantages over substituting in IRS observations. It accommodates
+the uncertainty of using an auxiliary data source, and several draws from the IRS data
+would produce a spread of income values (see the discussion of multiple imputation
+below). This algorithm becomes especially useful when we go past two dimensions into
+six or seven, each of which is partially specified.
+
+The primary benefit of Hartley's EM algorithm is that it uses all available information,
+in a Bayesianly-correct manner, to generate the final table. If a respondent has only ACS
+or only IRS data, their response is still used to generate the densities in the final table.
+Tea's implementation offers a few minor benefits: it accommdates near-misses (and so is
+usable for near-continuous variables like incomes) and is implemented efficiently enough
+to work for up to about seven-dimensional tables (though it starts to freeze up past that point,
+especially when many-valued variables like age or income are involved).
+
+Paragraph(An example)
+
+In the code repository, there is a second data set, named fake_in.csv. This is indeed fake
+data, generated via tt(fake_in.c) (also in the repository), which reads the first 2,000 income observations from the DC PUMS, and multiplies each by a draw from a truncated Normal(0.9, 0.2) distribution. Thus, the fake income data systematically under-reports the actual data.
+
+Our first task in processing is to merge the data sets into one table. Joining data sets
+is one of the great strengths of SQL databases, and we only have to specify how it is done
+using a tt(join) segment in the spec file. 
+
+InSpec(joined)
+
+Here is the R code. The work with Tea is the two first lines, tt(readSpec) and
+tt(doMImpute). Tea's dependency tracking knows that the imputation requires the joined
+table, which in turn requires reading in the various input data sets.
+
+The remainder of the R code blanks out a few more income values from the ACS microdata,
+and generates a few summary statistics.
+
+InR(joined)
+
+Here is the output. Note that, even though the fake data is biased, generated via a
+process that understates income by 90% of the true values, using it as a covariate gave us
+better results than not using it.
+
 
 
 Chapter(Editing~~editsec) 

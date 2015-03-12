@@ -85,3 +85,8 @@ html:
 
 push:
 	cd $(MMS_dir) && HTMLout=$(HTMLout) Extra_files="$(Extra_files)" make push
+
+CFLAGS = -g -Wall `pkg-config --cflags apophenia` -O3 -std=c11
+LDLIBS = `pkg-config --libs apophenia`
+
+fake_in:
