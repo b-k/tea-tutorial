@@ -1,7 +1,6 @@
 database: test.db
 id: id
 
-
 input {
     input file: dc_pums_08.csv
     output table: dc
@@ -12,8 +11,10 @@ fields {
     PINCP: real
     income: real
     log_in: real
-    schl: int 1-24
+    schl: int 0-24
     has_income: int 0, 1
+    id: real
+    age_cat: cat 0-3, X
 }
 
 recodes {
@@ -53,12 +54,15 @@ join {
     output table: dc_united
 }
 
-fields {
-    age: real
-    schl: int 1-24
+impute {
+    method: em
+    vars: income, PINCP, age_cat
+    output table: via_em
 }
 
 impute {
-    method: em
-    vars: income, PINCP
+    input table: dc_united
+    method: hot deck
+    vars: PINCP
+    output table: via_hot_deck
 }
