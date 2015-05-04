@@ -94,7 +94,7 @@ like tt(is_heterosexual_marriage) calculated from the sex of the spouses, or log
     of individual respondents.
 
     ∙ HTML(An) TeX(The Appendix in Section) Ref(appendix~~appendices) provides some
-    other useful information, including some notes on missingess markers in various
+    other useful information, including some notes on missingness markers in various
     systems and a suggestion on how to cite Tea in your papers.
 )
 
@@ -622,7 +622,7 @@ Pic(log_wageplots.png~~Log wages from the data and imputed using Hot Deck and a 
 Chapter(Imputation with auxiliary data~~emsec)
 
 Consider two data sets that ostensibly measure the same thing, such as American Community
-Survey income questions and and income questions on tax returns. The biases and
+Survey income questions and income questions on tax returns. The biases and
 assumptions underlying both questions are slightly different. People have a strong
 incentive to understate taxable income, or might treat exceptional circumstances
 differently between the two. But we have a strong expectation that the two are closely
@@ -633,7 +633,7 @@ for some only one or the other, and for some we have neither.
 
 Tea has an implementation of the expectation-maximization algorithm by Citet(hartley:em~~hartley), popularized in Citet(rubin:implementation~~Rubin).
 The end result in our two-income example is a table with ACS incomes on the rows and
-IRS incomes on the colums. We expect that most observations will be along the main
+IRS incomes on the columns. We expect that most observations will be along the main
 diagonal where ACS income equals IRS income.
 
 Given a person with a known IRS income, we can impute their ACS income by taking the
@@ -649,14 +649,14 @@ six or seven, each of which is partially specified.
 The primary benefit of Hartley's EM algorithm is that it uses all available information,
 in a Bayesianly-correct manner, to generate the final table. If a respondent has only ACS
 or only IRS data, their response is still used to generate the densities in the final table.
-Tea's implementation offers a few minor benefits: it accommdates near-misses (and so is
+Tea's implementation offers a few minor benefits: it accommodates near-misses (and so is
 usable for near-continuous variables like incomes) and is implemented efficiently enough
 to work for up to about seven-dimensional tables (though it starts to freeze up past that point,
 especially when many-valued variables like age or income are involved).
 
 Paragraph(An example)
 
-In the code repository, there is a second data set, named fake_in.csv. This is indeed fake
+In the code repository, there is a second data set, named tt(fake_in.csv). This is indeed fake
 data, generated via tt(fake_in.c) (also in the repository), which reads the first 2,000 income observations from the DC PUMS, and multiplies each by a draw from a truncated Normal(0.9, 0.2) distribution. Thus, the fake income data systematically under-reports the actual data.
 
 Our first task in processing is to merge the data sets into one table. Joining data sets
@@ -682,18 +682,34 @@ better results than not using it.
 
 Chapter(Editing~~editsec) 
 
-Edits go in the tt(checks) segment of the spec. You already saw examples above, in the
-form of the mechanical edits:
+To this point, we have covered imputation of missing values, where those values and
+edit-associated values get checked. This segment will cover editing the data that is already
+part of the data set. There are three things that can be done when an edit is hit:
 
-SpecCode(checks {
-    has_income=0 and PINC is null => PINCP=0
+Items(
+    ∙ Keep a tally of which fields in which records failed how many edits.
+        If you only want to get a count of how many fields fail in how many records,
+        try the tt(CheckDF) function.
+    ∙ Preedit: make a deterministic change you specify given that the edit was triggered.
+    ∙ Blank it: use a heuristic specified below to blank out a field, so you can impute it
+        in a subsequent call to tt(doMImpute()).
+)
 
-    PINCP>1e6 => PINC=1e6   # top code
+The sample spec for this part of the tutorial will focus on age, income, and schooling,
+and the presumption that children do not have advanced degrees or significant incomes.
 
-    PINCP+0.0<0
-})
+InSpec(edit)
 
+The tt(checks) section looks much like the sections above. One edit, that if age is
+less than twelve and income is positive, has no associated preedit, because we do
+not know whether a fault is in the age or the income field. The other edit has an
+associated preedit, that if years of schooling look off, we should assign the
+U.S.-typical age minus five to schooling. As with most deterministic preedits, this
+comes off as a somewhat strong assumption.
 
+Any time a record needs to be verified, including during edits, these checks will run.
+
+Comment(
 Note that edits are pessimstic: put the event that would cause a failure in the tt(checks)
 section of the spec (e.g., tt(PINCP<0)), not the condition that you would like to see
 remain true (e.g., tt(PINCP>=0)).
@@ -701,10 +717,88 @@ remain true (e.g., tt(PINCP>=0)).
 You already saw that the imputations always check their results against the edits. For
 example, a Normal distribution could easily generate negative incomes, but Tea checks
 every draw against every consistency check, and throws away and redraws any that fail.
+)
+
+This spec file also has an tt(edit) segment, which allows you to describe similar
+logistics to the tt(impute) segment, like the input table (which is assumed to be the output
+from the last segment of the spec), the output table, and whether to overwrite.
+
+That segment gets used when you call tt(doEdit()) from R. Here is a sample program. 
+
+InR(edit)
+
+The ACS PUMS is already edited, so the first order of business is to insert errors, which
+is what the two tt(update) queries do toward the head of the file.
+
+The tt(doEdit) call will fist handle the preedits.
+When a record hits a failure with a preedit:
+Items(
+    ∙ The change made by the preedit is recorded in the output table.
+    ∙ For the purposes of this record, this modification is exhausted. The edit (here, that
+        tt(schl>12 and agep<14) is an error) wil still be checked.
+    ∙ The whole check starts over, with the newly modified record.
+)
+
+The record may encounter additional preedits, or it may get to the end of the edit list
+with no further changes. An exhausted preedit will not be reapplied to a record, so we are
+guaranteed forward progress.
+
+But there may still be edit failures. In this case, the next step that tt(doEdit()) will
+take is to blank out fields, with the intent of allowing you to impute them later.
+
+Paragraph(The blanking procedure)
+At this point in the process, we have checked every edit, and have a tally of every edit
+that failed for a given record, and know which fields are associated with the edit.
+
+We would like to blank out the value that is implicated in the most edits. Say that
+an edit regarding age and housing tenure failed. If age appears in a hundred edits and
+fails in six, while tenure appears in three edits but fails all three, we are inclined
+to believe that it is tenure (and perhaps some other variable in other age-related
+edits) that needs fixing. So we use a modified percentage of edits failed to determine
+which field to blank.
+
+The modifier is a user-specified salience, which you may set in the tt(fields) segment:
+
+SpecCode(
+fields {
+    age: [1.5] real
+    status: [2] cat married, single, divorced
+    tenure: cat own, rent
+}
+)
+
+Here, tenure has the default salience of one, and age has a salience of 1.5. In the example
+above, the score for age is now 1.5 * 6/100 = .09. The corresponding score for tenure
+is thus 1*3/3 = 1, so tenure is still going to be blanked if there is a failing edit
+regarding tenure and age.
+
+After tenure is blanked, all later edits regarding tenure are considered resolved for this
+record.
+
+Paragraph(The follow-up imputation and the audit trail)
+At the end of the tt(doEdit()) step, we have a fill-in table named tt(edits), which is
+identical to the output from the imputation steps above, except that it may include some
+tt(NULL)s, indicating that a certain field in a certain record is to be blanked out.
+
+We could 
+use tt(checkOutImpute) to fold the list of changes into a new table and check that the
+edits have been made.
+
+Or, we can use the tt(previous output table) key in the imputation to have the imputation
+automatically pull the edits for us.
 
 
+In this setup, the edits and imputations have all been written to the same table, thus
+producing a complete audit trail. We can query for every entry with a given record ID to
+see what happened to the record over the course of things:
 
-How to run the edits outside the context of an imputation here.
+RCode(
+teaTable("ed_imp", where= "id=72023405")
+
+
+)
+
+
 
 
 
