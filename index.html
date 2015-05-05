@@ -536,7 +536,7 @@ draws) to fill in the missing value.</p>
 <p>Hot Deck does not make assumptions about mathematical relations among variables. For
 example, there is no need to evaluate and substantiate claims that variables are
 multivariate Normal, or there is a linear relationship between some set of dependent
-variables and independent variables.  Hot Deck does make the basic modeling assumption
+variables and independent variables. But Hot Deck does make the basic modeling assumption
 that neighbors are similar, and that values observed in the neighborhood are the most
 likely values that would have been observed had the missing data been gathered.</p>
 
@@ -576,18 +576,6 @@ a roll-up occurs via an <tt>impute/min group size</tt> key.</p>
 
 <p><a name="incimp"><h6>Imputing incomes</h6></a><p>
 The following example imputes missing incomes using two methods.</p>
-
-<p>The sample data used in this tutorial is already-cleaned public use data, so the only
-missing incomes are for people under 15 (who all have missing income, which tells us
-that the ACS probably has an edit akin to <tt>age<=15 => PINCP=NULL</tt>).
-The <tt>pokeHoles</tt> function
-first records the original distribution as reported by the Census (in the <tt>precut</tt>
-table), then
-blanks out the incomes of about 30% of respondents (probably including a good number
-of already-blank under-15s). Because <tt>pokeHoles.R</tt> is not really
-about Tea, we do not print it here, but you can inspect it on the
-<a href="https://github.com/b-k/tea-tutorial/blob/master/pokeHoles.R"><tt>pokeHoles.R</tt>
-page</a> of the repository.</p>
 
 <p>Here is the spec file, with several imputation methods:</p>
 
@@ -660,7 +648,7 @@ makes the assumptions underlying the imputation clear, and provides an easy mean
 quickly trying different models.</p>
 
 <p>After every value is imputed, the edits are checked. Above, you saw that <tt>recodes.spec</tt>
-has an edit specifying that if <tt>has_income=0 and PINC is null</tt> then set (PINC=0). This
+has an edit specifying that if <tt>has_income=0 and PINC is null</tt> then set <tt>PINC</tt> to zero. This
 guarantees us that at the end of the imputation of <tt>has_income</tt>, the only people
 with incomes marked as missing are those who are imputed as having a nonzero income.</p>
 
@@ -725,6 +713,17 @@ input table, add the <tt>autofill</tt> key to an imputation.</p>
 distributions on one plot.</p>
 
 <p>        </li></ul></p>
+
+<p>The sample data used in this tutorial is already-cleaned public use data, so the only
+missing incomes are for people under 15 (who all have missing income, which tells us
+that the ACS probably has an edit akin to <tt>age<=15 => PINCP=NULL</tt>).
+The <tt>pokeHoles</tt> function
+first records the original distribution as reported by the Census (in the <tt>precut</tt>
+table), then
+blanks out the incomes of about 30% of respondents (probably including a good number
+of already-blank under-15s). Because <tt>pokeHoles.R</tt> is not really
+about Tea, we do not print it here, but you can inspect it on the
+<a href="https://github.com/b-k/tea-tutorial/blob/master/pokeHoles.R">pokeHoles.R page</a> of the repository.</p>
 
 <p>This tutorial will not go into detail regarding the especially R-heavy portions of
 the code, such as how the <tt>ggplot2</tt> package was used to generate the final plot, though
@@ -805,10 +804,10 @@ incentive to understate taxable income, or might treat exceptional circumstances
 differently between the two. But we have a strong expectation that the two are closely
 correlated.</p>
 
-<p>In such a situation, we can expect that for some respondents, we have both observations,
+<p>We can expect that for some respondents, we have both observations,
 for some only one or the other, and for some we have neither.</p>
 
-<p>Tea has an implementation of the expectation-maximization algorithm by <a href="#hartley:em">hartley</a>, popularized in <a href="#rubin:implementation">Rubin</a>.
+<p>Tea has an implementation of the expectation-maximization algorithm by <a href="#Hartley:em">hartley</a>, popularized in <a href="#rubin:implementation">Rubin</a>.
 The end result in our two-income example is a table with ACS incomes on the rows and
 IRS incomes on the columns. We expect that most observations will be along the main
 diagonal where ACS income equals IRS income.</p>
@@ -1001,7 +1000,7 @@ part of the data set. There are three things that can be done when an edit is hi
         If you only want to get a count of how many fields fail in how many records,
         try the <tt>CheckDF</tt> function.
     </li>
-            <li> Preedit: make a deterministic change you specify given that the edit was triggered.
+            <li> Mechanical edit: make a deterministic change you specify given that the edit was triggered.
     </li>
             <li> Blank it: use a heuristic specified below to blank out a field, so you can impute it
         in a subsequent call to <tt>doMImpute()</tt>.</p>
@@ -1058,10 +1057,10 @@ impute {
 </code></pre></div>
 
 <p>The <tt>checks</tt> section looks much like the sections above. One edit, that if age is
-less than twelve and income is positive, has no associated preedit, because we do
+less than twelve and income is positive, has no associated mechanical edit, because we do
 not know whether a fault is in the age or the income field. The other edit has an
-associated preedit, that if years of schooling look off, we should assign the
-U.S.-typical age minus five to schooling. As with most deterministic preedits, this
+associated mechanical edit, that if years of schooling look off, we should assign the
+U.S.-typical age minus five to schooling. As with most deterministic edits, this
 comes off as a somewhat strong assumption.</p>
 
 <p>Any time a record needs to be verified, including during edits, these checks will run.</p>
@@ -1094,10 +1093,10 @@ doMImpute()
 <p>The ACS PUMS is already edited, so the first order of business is to insert errors, which
 is what the two <tt>update</tt> queries do toward the head of the file.</p>
 
-<p>The <tt>doEdit</tt> call will fist handle the preedits.
-When a record hits a failure with a preedit:
+<p>The <tt>doEdit</tt> call will fist handle the mechanical edits.
+When a record hits a failure with a mechanical edit:
 <ul>
-            <li> The change made by the preedit is recorded in the output table.
+            <li> The change made by the edit is recorded in the output table.
     </li>
             <li> For the purposes of this record, this modification is exhausted. The edit (here, that
         <tt>schl>12 and agep<14</tt> is an error) wil still be checked.
@@ -1106,8 +1105,8 @@ When a record hits a failure with a preedit:
 
 <p>        </li></ul></p>
 
-<p>The record may encounter additional preedits, or it may get to the end of the edit list
-with no further changes. An exhausted preedit will not be reapplied to a record, so we are
+<p>The record may encounter additional mechanical edits, or it may get to the end of the edit list
+with no further changes. An exhausted mechanical edit will not be reapplied to a record, so we are
 guaranteed forward progress.</p>
 
 <p>But there may still be edit failures. In this case, the next step that <tt>doEdit()</tt> will
