@@ -140,17 +140,17 @@ from programming languages like R or SAS, it is a simpler grammar that is easier
 write, and analysts whose areas of expertise are not in programming can
 write technical specifications without the assistance of a programmer or training
 in a new programming language. Second, this follows the programming adage that data and
-procedure should be kept separate. Modifying the list of valid responses to a survey
-question should not require touching any procedural code; modifying the procedure
-by which the survey is processed should not require rewriting the description of the
-survey questions or their validity rules. Third, we hope that spec files will be published
+procedure should be kept separate. Third, we hope that spec files will be published
 along with data sets, so that users can see the assumptions made during processing.
 
 Throughout this tutorial, code snippets that have a file name can be found in the 
-Link(https://github.com/b-k/tea-tutorial.git~~tutorial repository). Being plain text,
-you can open and edit them using any text editor (Notepad, Kate, vi, ...). From that directory,
-you can cut/paste the R sample code onto the R command prompt, or run the program
-using R's the tt(source) command, e.g., from R:
+Link(https://github.com/b-k/tea-tutorial.git~~tutorial repository).
+In the sidebar on that page, you will find a link to download a zip file of the full set
+of files, or users familiar with git can clone the repository.
+
+Being plain text, you can open and edit the files using any text editor (Notepad,
+Kate, vi, ...). From that directory, you can cut/paste the R sample code onto the R
+command prompt, or run the program using R's the tt(source) command, e.g., from R:
 
 RCode(
 source("hello.R")
@@ -665,12 +665,16 @@ using a tt(join) segment in the spec file.
 
 InSpec(joined)
 
-Here is the R code. The work with Tea is the two first lines, tt(readSpec) and
-tt(doMImpute). Tea's dependency tracking knows that the imputation requires the joined
-table, which in turn requires reading in the various input data sets.
+Here is the R code. The tt(library) and tt(readSpec) are by now familiar to you, but the
+script then introduces a new command, tt(doTable). Because tea derived the pipeline
+of input/output tables from your spec file, it knows what steps to take to generate
+any given table. Inspecting the spec ourselves, we see that tt(dc_united) depends on
+tt(viewdc), which is the product of recodes on tt(dc), which is a read-in from the
+tt(dc_pums_08.csv) file, and on tt(fake_incomes), which is a read-in from tt(fake_in.csv).
+The tt(doTable("dc_united")) function will therefore implement all of those steps.
 
-The remainder of the R code blanks out a few more income values from the ACS microdata,
-and generates a few summary statistics.
+As above, the public-use microdata is complete, so we need to use the tt(pokeHoles)
+function to produce some missing data. The script then calls tt(doMImpute).
 
 InR(joined)
 
@@ -678,6 +682,26 @@ Here is the output. Note that, even though the fake data is biased, generated vi
 process that understates income by 90% of the true values, using it as a covariate gave us
 better results than not using it.
 
+
+RCode(
+[1] "MSEs for income imputed via EM algorithm (w/aux data)"
+abs(dcu.pincp - imp.pincp)
+Min.   : 2.303
+1st Qu.: 7.251
+Median : 8.701
+Mean   : 8.197
+3rd Qu.: 9.799
+Max.   :13.715
+
+[1] "MSEs for income imputed via Hot deck"
+abs(dcu.pincp - imp.pincp)
+Min.   : 2.303
+1st Qu.: 9.623
+Median :10.483
+Mean   :10.166
+3rd Qu.:11.296
+Max.   :13.635
+)
 
 
 Chapter(Editing~~editsec) 

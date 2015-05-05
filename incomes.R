@@ -7,27 +7,16 @@ doInput()
 dbGetQuery(teaenv$con, "update viewdc set pincp=pincp+10")
 
 # Dirty up the data by blanking out 30% of incomes
-try(dbGetQuery(teaenv$con, "drop table precut"))
-dbGetQuery(teaenv$con, "create table precut as select * from viewdc")
-table_len <-dbGetQuery(teaenv$con, "select count(*) from viewdc")[[1]]
-rowids <- floor(runif(table_len*.30)*table_len)
-
-lapply(rowids, function(row){
-       dbGetQuery(teaenv$con, paste("update viewdc set pincp=NULL where rowid=", row))
-})
-
-# A hack; automatic editing like this is introduced below.
-dbGetQuery(teaenv$con, "update viewdc set PINCP=null where PINCP<0")
-
+source("pokeHoles.R")
+pokeHoles("viewdc", "pincp", .3)
 
 doMImpute()
-
 
 # A function to use checkOutImpute to get imputed PINCPs and save them
 # in a format amenable to the plotting routine
 getOne <-function(method, fillins){
     filledtab <- paste(fillins, "fill", sep="")
-    checkOutImpute(teaenv$active_tab, filledtab, filltab=fillins,
+    checkOutImpute(origin="viewdc", dest=filledtab, filltab=fillins,
                        subset="agep+0>15")
     outframe <-teaTable(filledtab, cols="PINCP")
     outframe$PINCP <- log10(outframe$PINCP+10)
