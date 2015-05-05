@@ -21,7 +21,7 @@ getDiffs <- function(method, name){
                        and dcu.agep>15 \
                        and dcu.id in (select id from dc_united where pincp is null)"))
     diffs <- log(diffs+10)
-    print(paste("MSEs for income imputed via", name))
+    print(paste("Log diffs for income imputed via", name))
     print(summary(diffs))
 }
 

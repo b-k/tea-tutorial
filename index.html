@@ -958,7 +958,7 @@ getDiffs <- function(method, name){
                        and dcu.agep>15 \
                        and dcu.id in (select id from dc_united where pincp is null)"))
     diffs <- log(diffs+10)
-    print(paste("MSEs for income imputed via", name))
+    print(paste("Log diffs for income imputed via", name))
     print(summary(diffs))
 }
 
@@ -970,7 +970,7 @@ getDiffs("hot_deck", "Hot deck")
 process that understates income by 90% of the true values, using it as a covariate gave us
 better results than not using it.</p>
 
-<div class="rcode"><pre><code>[1] "MSEs for income imputed via EM algorithm (w/aux data)"
+<div class="rcode"><pre><code>[1] "Log diffs for income imputed via EM algorithm (w/aux data)"
 abs(dcu.pincp - imp.pincp)
 Min.   : 2.303
 1st Qu.: 7.251
@@ -979,7 +979,7 @@ Mean   : 8.197
 3rd Qu.: 9.799
 Max.   :13.715
 
-[1] "MSEs for income imputed via Hot deck"
+[1] "Log diffs for income imputed via Hot deck"
 abs(dcu.pincp - imp.pincp)
 Min.   : 2.303
 1st Qu.: 9.623
@@ -1057,7 +1057,7 @@ impute {
 </code></pre></div>
 
 <p>The <tt>checks</tt> section looks much like the sections above. One edit, that if age is
-less than twelve and income is positive, has no associated mechanical edit, because we do
+less than thirteen and income is positive, has no associated mechanical edit, because we do
 not know whether a fault is in the age or the income field. The other edit has an
 associated mechanical edit, that if years of schooling look off, we should assign the
 U.S.-typical age minus five to schooling. As with most deterministic edits, this
@@ -1090,16 +1090,13 @@ teaTable("vv", cols=c("agep", "schl"), where="agep<15 and schl>19")
 doMImpute()
 </code></pre></div>
 
-<p>The ACS PUMS is already edited, so the first order of business is to insert errors, which
-is what the two <tt>update</tt> queries do toward the head of the file.</p>
-
 <p>The <tt>doEdit</tt> call will fist handle the mechanical edits.
 When a record hits a failure with a mechanical edit:
 <ul>
             <li> The change made by the edit is recorded in the output table.
     </li>
             <li> For the purposes of this record, this modification is exhausted. The edit (here, that
-        <tt>schl>12 and agep<14</tt> is an error) wil still be checked.
+        <tt>schl>12 and agep$\leq$14</tt> is an error) wil still be checked.
     </li>
             <li> The whole check starts over, with the newly modified record.</p>
 
