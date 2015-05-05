@@ -17,6 +17,10 @@ fields {
     age_cat: cat 0-3, X
 }
 
+checks {
+    pincp < 0
+}
+
 recodes {
     id: serialno*100 + sporder
     log_in: log10(PINCP+10)
@@ -55,14 +59,21 @@ join {
 }
 
 impute {
+    input table: dc_united
     method: em
     vars: income, PINCP, age_cat
     output table: via_em
+    subset: agep>15
+    near misses: ok
 }
 
 impute {
+    categories {
+        age_cat
+    }
     input table: dc_united
     method: hot deck
     vars: PINCP
+    subset: agep>15
     output table: via_hot_deck
 }

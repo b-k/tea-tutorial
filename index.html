@@ -861,6 +861,10 @@ fields {
     age_cat: cat 0-3, X
 }
 
+checks {
+    pincp < 0
+}
+
 recodes {
     id: serialno*100 + sporder
     log_in: log10(PINCP+10)
@@ -899,46 +903,92 @@ join {
 }
 
 impute {
+    input table: dc_united
     method: em
     vars: income, PINCP, age_cat
     output table: via_em
+    subset: agep>15
+    near misses: ok
 }
 
 impute {
+    categories {
+        age_cat
+    }
     input table: dc_united
     method: hot deck
     vars: PINCP
+    subset: agep>15
     output table: via_hot_deck
 }
 </code></pre></div>
 
-<p>Here is the R code. The work with Tea is the two first lines, <tt>readSpec</tt> and
-<tt>doMImpute</tt>. Tea's dependency tracking knows that the imputation requires the joined
-table, which in turn requires reading in the various input data sets.</p>
+<p>Here is the R code. The <tt>library</tt> and <tt>readSpec</tt> are by now familiar to you, but the
+script then introduces a new command, <tt>doTable</tt>. Because tea derived the pipeline
+of input/output tables from your spec file, it knows what steps to take to generate
+any given table. Inspecting the spec ourselves, we see that <tt>dc_united</tt> depends on
+<tt>viewdc</tt>, which is the product of recodes on <tt>dc</tt>, which is a read-in from the
+<tt>dc_pums_08.csv</tt> file, and on <tt>fake_incomes</tt>, which is a read-in from <tt>fake_in.csv</tt>.
+The <tt>doTable("dc_united")</tt> function will therefore implement all of those steps.</p>
 
-<p>The remainder of the R code blanks out a few more income values from the ACS microdata,
-and generates a few summary statistics.</p>
+<p>As above, the public-use microdata is complete, so we need to use the <tt>pokeHoles</tt>
+function to produce some missing data. The script then calls <tt>doMImpute</tt>.</p>
 
 <div class="rcode"><pre><code># joined.R
 
 library(tea)
 readSpec("joined.spec")
+doTable("dc_united")
+
+source("pokeHoles.R")
+pokeHoles("dc_united", "pincp")
+
 doMImpute()
 
-checkOutImpute("dc_united", "filled_em", filltab="via_em")
-checkOutImpute("dc_united", "filled_hd", filltab="via_hot_deck")
+# Check out an imputation using the chosen method
+# Query the absolute difference between the correct PINCP and the imputed
+# Get log(diff+10), where the +10 deals with zeros
+# Print a summary of the log differences.
+getDiffs <- function(method, name){
+    filltab <- paste("via_", method, sep="")
+    outtab <- paste("complete_", filltab, sep="")
+    checkOutImpute(origin="dc_united", dest=outtab, filltab=filltab)
+    diffs <- dbGetQuery(teaenv$con, paste("select abs(dcu.pincp - imp.pincp) \
+                       from precut dcu, ", outtab, "imp\
+                       where dcu.id+0.0 = imp.id \
+                       and dcu.agep>15 \
+                       and dcu.id in (select id from dc_united where pincp is null)"))
+    diffs <- log(diffs+10)
+    print(paste("MSEs for income imputed via", name))
+    print(summary(diffs))
+}
 
-print("Before impute:")
-print(summary(teaTable("dc", cols="pincp", where="pincp>=0")))      
-print("EM:")
-print(summary(teaTable("filled_em", cols="pincp")))      
-print("HD:")
-print(summary(teaTable("filled_hd", cols="pincp")))      
+getDiffs("em", "EM algorithm (w/aux data)")
+getDiffs("hot_deck", "Hot deck")
 </code></pre></div>
 
 <p>Here is the output. Note that, even though the fake data is biased, generated via a
 process that understates income by 90% of the true values, using it as a covariate gave us
 better results than not using it.</p>
+
+<div class="rcode"><pre><code>[1] "MSEs for income imputed via EM algorithm (w/aux data)"
+abs(dcu.pincp - imp.pincp)
+Min.   : 2.303
+1st Qu.: 7.251
+Median : 8.701
+Mean   : 8.197
+3rd Qu.: 9.799
+Max.   :13.715
+
+[1] "MSEs for income imputed via Hot deck"
+abs(dcu.pincp - imp.pincp)
+Min.   : 2.303
+1st Qu.: 9.623
+Median :10.483
+Mean   :10.166
+3rd Qu.:11.296
+Max.   :13.635
+</code></pre></div>
 
 <p><a name="editsec"><h1>Editing</h1></a><p> </p>
 
