@@ -128,17 +128,17 @@ from programming languages like R or SAS, it is a simpler grammar that is easier
 write, and analysts whose areas of expertise are not in programming can
 write technical specifications without the assistance of a programmer or training
 in a new programming language. Second, this follows the programming adage that data and
-procedure should be kept separate. Modifying the list of valid responses to a survey
-question should not require touching any procedural code; modifying the procedure
-by which the survey is processed should not require rewriting the description of the
-survey questions or their validity rules. Third, we hope that spec files will be published
+procedure should be kept separate. Third, we hope that spec files will be published
 along with data sets, so that users can see the assumptions made during processing.</p>
 
 <p>Throughout this tutorial, code snippets that have a file name can be found in the 
-<a href="https://github.com/b-k/tea-tutorial.git">tutorial repository</a>. Being plain text,
-you can open and edit them using any text editor (Notepad, Kate, vi, ...). From that directory,
-you can cut/paste the R sample code onto the R command prompt, or run the program
-using R's the <tt>source</tt> command, e.g., from R:</p>
+<a href="https://github.com/b-k/tea-tutorial.git">tutorial repository</a>.
+In the sidebar on that page, you will find a link to download a zip file of the full set
+of files, or users familiar with git can clone the repository.</p>
+
+<p>Being plain text, you can open and edit the files using any text editor (Notepad,
+Kate, vi, ...). From that directory, you can cut/paste the R sample code onto the R
+command prompt, or run the program using R's the <tt>source</tt> command, e.g., from R:</p>
 
 <div class="rcode"><pre><code>source("hello.R")
 </code></pre></div>
@@ -410,15 +410,16 @@ library(tea)
 readSpec("recode.spec")
 doInput()
 
-tt <- teaTable("viewdc", limit=20, cols=c("id", "PINCP", "log_in", "hh_in", "house_in"))
+tt <- teaTable("viewdc", limit=20, cols=c("id", "PINCP", "log_in",
+                                          "hh_in", "house_in"))
 print(tt)
 
 print(summary(teaTable(teaenv$active_tab, cols=c("log_in", "log_house_in"),
-                                          where="log_in+log_house_in > -100")))
+                                     where="log_in+log_house_in > -100")))
 
 print(dbGetQuery(teaenv$con, "select avg(log_house_in) from \
-                                        (select distinct serialno, log_house_in \
-                                         from viewdc where log_house_in > -100)"))
+                                (select distinct serialno, log_house_in \
+                                from viewdc where log_house_in > -100)"))
 </code></pre></div>
 
 <p><ul>
@@ -578,17 +579,24 @@ The following example imputes missing incomes using two methods.</p>
 
 <p>The sample data used in this tutorial is already-cleaned public use data, so the only
 missing incomes are for people under 15 (who all have missing income, which tells us
-that the ACS probably has an edit akin to <tt>age<=15 => PINCP=NULL</tt>). So the R
-script will first record the original distribution as reported by the Census, then
-blank out the incomes of about 30% of respondents (probably including a good number
-of already-blank under-15s), then try the various imputation methods in the spec file.
-Here is the spec file, with two imputation methods:</p>
+that the ACS probably has an edit akin to <tt>age<=15 => PINCP=NULL</tt>).
+The <tt>pokeHoles</tt> function
+first records the original distribution as reported by the Census (in the <tt>precut</tt>
+table), then
+blanks out the incomes of about 30% of respondents (probably including a good number
+of already-blank under-15s). Because <tt>pokeHoles.R</tt> is not really
+about Tea, we do not print it here, but you can inspect it on the
+<a href="https://github.com/b-k/tea-tutorial/blob/master/pokeHoles.R"><tt>pokeHoles.R</tt>
+page</a> of the repository.</p>
+
+<p>Here is the spec file, with several imputation methods:</p>
 
 <div class="spec"><pre><code># incomes.spec
 
 include: recode.spec
 
 impute {
+    input table: viewdc
     vars: has_income
     categories {
         age_cat
@@ -600,6 +608,7 @@ impute {
 }
 
 common {
+    input table: viewdc
     earlier output table: has_in
     min group size: 5
     subset: agep+0.0>15
@@ -731,17 +740,8 @@ doInput()
 dbGetQuery(teaenv$con, "update viewdc set pincp=pincp+10")
 
 # Dirty up the data by blanking out 30% of incomes
-try(dbGetQuery(teaenv$con, "drop table precut"))
-dbGetQuery(teaenv$con, "create table precut as select * from viewdc")
-table_len <-dbGetQuery(teaenv$con, "select count(*) from viewdc")[[1]]
-rowids <- floor(runif(table_len*.30)*table_len)
-
-lapply(rowids, function(row){
-       dbGetQuery(teaenv$con, paste("update viewdc set pincp=NULL where rowid=", row))
-})
-
-# A hack; automatic editing like this is introduced below.
-dbGetQuery(teaenv$con, "update viewdc set PINCP=null where PINCP<0")
+source("pokeHoles.R")
+pokeHoles("viewdc", "pincp", .3)
 
 doMImpute()
 
@@ -749,7 +749,7 @@ doMImpute()
 # in a format amenable to the plotting routine
 getOne <-function(method, fillins){
     filledtab <- paste(fillins, "fill", sep="")
-    checkOutImpute(teaenv$active_tab, filledtab, filltab=fillins,
+    checkOutImpute(origin="viewdc", dest=filledtab, filltab=fillins,
                        subset="agep+0>15")
     outframe <-teaTable(filledtab, cols="PINCP")
     outframe$PINCP <- log10(outframe$PINCP+10)
@@ -941,7 +941,7 @@ readSpec("joined.spec")
 doTable("dc_united")
 
 source("pokeHoles.R")
-pokeHoles("dc_united", "pincp")
+pokeHoles("dc_united", "pincp", .3)
 
 doMImpute()
 

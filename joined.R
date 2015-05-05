@@ -3,7 +3,7 @@ readSpec("joined.spec")
 doTable("dc_united")
 
 source("pokeHoles.R")
-pokeHoles("dc_united", "pincp")
+pokeHoles("dc_united", "pincp", .3)
 
 doMImpute()
 

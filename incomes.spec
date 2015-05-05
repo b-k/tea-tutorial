@@ -1,6 +1,7 @@
 include: recode.spec
 
 impute {
+    input table: viewdc
     vars: has_income
     categories {
         age_cat
@@ -12,6 +13,7 @@ impute {
 }
 
 common {
+    input table: viewdc
     earlier output table: has_in
     min group size: 5
     subset: agep+0.0>15
