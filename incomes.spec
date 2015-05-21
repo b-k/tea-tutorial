@@ -30,13 +30,13 @@ impute {
     vars: PINCP
     paste in: common
     method: hot deck
-    output table: hd
+    fill table: hd
 }
 
 impute {
     vars: PINCP
     paste in: common
     method: lognormal
-    output table: norm
+    fill table: norm
 }
 

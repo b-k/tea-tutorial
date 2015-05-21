@@ -207,7 +207,7 @@ to editing. You can have one <tt>fields</tt> section for every table, or several
 treated as a single unit.</p>
 
 <p>Spacing in the spec file is largely irrelevant, but each key:value pair must end with
-a newline (or the \} closing a group, though we think having the \} on its own line
+a newline (or the } closing a group, though we think having the } on its own line
 looks better). You will see some examples below where the expression is too long for
 one line, so lines are joined by ending the first line with a backslash.</p>
 
@@ -363,6 +363,9 @@ checks {
     so generate a unique ID by joining the two together.</p>
 
 <p>    </li>
+            <li> The ID column must be numeric.</p>
+
+<p>    </li>
             <li> Income in US dollars is given by the <tt>PINCP</tt> variable. Because it is often easier to
     work with log of income, generate a variable with log of income. The <tt>+10</tt> prevents
     log-of-zero errors.</p>
@@ -461,11 +464,17 @@ be used as the input table for the next segment.</p>
 end of a sequence of recodes is the input table name with <tt>view</tt> at the front. E.g.,
 <tt>intab</tt> $\to$ <tt>viewintab</tt>.</p>
 
-<p>The imputation uses <tt>filled</tt> as the default output table name, but you are encouraged to
-use something else.</p>
+<p>Imputations and edits typically generate a table of fill-ins, which specify a certain
+value for a certain cell, e.g., for draw #2, the age for record 34187 should be 68. The
+<tt>checkOutImpute</tt> function will take a base table and a fill-in table and do the fill-ins
+to generate the completed or corrected table. Thus, edits and imputations may have a
+<tt>fill table</tt> field specifying the name of this output. The default  output table
+name is <tt>filled</tt>, but you are encouraged to use something else.</p>
+
+<p>If you need to call in a fill table before a step happens, specify a <tt>input fill table</tt>.</p>
 
 <p>The flow is thus typically a chain of steps, like input $\to$ recode $\to$ join with
-another table $\to$ impute. If you give an instruction to overwrite input every time,
+another table $\to$ edit $\to$ impute. If you give an instruction to overwrite input every time,
 then the recode, join, and impute steps will also rebuild their output tables. If
 you remove the input table (SQL: <tt>"drop table read_in_data"</tt>) then the table will
 be re-read and all subsequent steps rerun.  The exceptions: <tt>checks</tt> and <tt>fields</tt>
@@ -613,14 +622,14 @@ impute {
     vars: PINCP
     paste in: common
     method: hot deck
-    output table: hd
+    fill table: hd
 }
 
 impute {
     vars: PINCP
     paste in: common
     method: lognormal
-    output table: norm
+    fill table: norm
 }
 
 </code></pre></div>
@@ -658,8 +667,8 @@ Tea is intended for multiple imputation, either in the formal sense (see, e.g.,
 are used on the same data set.</p>
 
 <p>To facilitate this, imputations are not written to the <tt>input table</tt> specified in the
-<tt>impute</tt> section, but to a separate <tt>output table</tt>.  For the <tt>has_income</tt> variable,
-the output table was <tt>has_in</tt>, so after the imputation, we can have a look at that
+<tt>impute</tt> section, but to a separate <tt>fill table</tt>.  For the <tt>has_income</tt> variable,
+the fill table was <tt>has_in</tt>, so after the imputation, we can have a look at that
 table:</p>
 
 <div class="rcode"><pre><code>teaTable("has_in", limit=5)
@@ -693,7 +702,7 @@ outdata <- teaTable("complete_tab")
 
 <p>One imputation often follows another. Here, the model of income depends on the
 <tt>has_income</tt> variable, so we have to impute <tt>has_income</tt> first. Imputations are
-done in the sequence listed in the spec file. Use the <tt>earlier output table</tt> key in
+done in the sequence listed in the spec file. Use the <tt>input fill table</tt> key in
 an <tt>impute</tt> group to specify a table of fill-ins to be checked out before embarking
 on the imputation described by this group.</p>
 
@@ -905,7 +914,7 @@ impute {
     input table: dc_united
     method: em
     vars: income, PINCP, age_cat
-    output table: via_em
+    fill table: via_em
     subset: agep>15
     near misses: ok
 }
@@ -918,7 +927,7 @@ impute {
     method: hot deck
     vars: PINCP
     subset: agep>15
-    output table: via_hot_deck
+    fill table: via_hot_deck
 }
 </code></pre></div>
 
@@ -1008,7 +1017,8 @@ part of the data set. There are three things that can be done when an edit is hi
 <p>        </li></ul></p>
 
 <p>The sample spec for this part of the tutorial will focus on age, income, and schooling,
-and the presumption that children do not have advanced degrees or significant incomes.</p>
+and the presumption that children do not have advanced degrees or significant incomes.
+Also, the number 13 is unlucky, so we disallow the schooling field from taking on the value 13.</p>
 
 <div class="spec"><pre><code># edit.spec
 
@@ -1021,9 +1031,10 @@ input {
 }
 
 fields {
-    agep: real
+    agep: [.9] real
     PINCP: real
-    schl: int 0-24
+    schl: [2.1] int 0-24
+    sex: int 1, 2
 }
 
 recodes {
@@ -1040,7 +1051,7 @@ checks {
 
 edit {
     input table: viewdc
-    output table: ed_imp
+    fill table: imp
 }
 
 impute {
@@ -1049,16 +1060,24 @@ impute {
     categories {
         agep
     }
-    subset: agep>=5
     vars: sex
-    previous output table: ed_imp
-    output table: imp
+    input fill table: imp
+    fill table: imp
+}
+
+impute {
+    subset: agep>=5
+    input table: viewdc
+    method: em
+    vars: schl, agep
+    input fill table: imp
+    fill table: imp
 }
 </code></pre></div>
 
-<p>The <tt>checks</tt> section looks much like the sections above. One edit, that if age is
+<p>The <tt>checks</tt> section looks much like the sections above. The first edit, that if age is
 less than thirteen and income is positive, has no associated mechanical edit, because we do
-not know whether a fault is in the age or the income field. The other edit has an
+not know whether a fault is in the age or the income field. The second has an
 associated mechanical edit, that if years of schooling look off, we should assign the
 U.S.-typical age minus five to schooling. As with most deterministic edits, this
 comes off as a somewhat strong assumption.</p>
@@ -1083,20 +1102,16 @@ dbGetQuery(teaenv$con, "update viewdc \
                     set schl=22 where agep between 10 and 14 and id%2 == 0")
 
 doEdit()
-
-checkOutImpute("viewdc", "vv", filltab="ed_imp")
-teaTable("vv", cols=c("agep", "schl"), where="agep<15 and schl>19")
-
 doMImpute()
 </code></pre></div>
 
 <p>The <tt>doEdit</tt> call will fist handle the mechanical edits.
 When a record hits a failure with a mechanical edit:
 <ul>
-            <li> The change made by the edit is recorded in the output table.
+            <li> The change made by the edit is recorded in the fill table.
     </li>
             <li> For the purposes of this record, this modification is exhausted. The edit (here, that
-        <tt>schl>12 and agep$\leq$14</tt> is an error) wil still be checked.
+        <tt>schl$>$12 and agep$\leq$14</tt> is an error) wil still be checked.
     </li>
             <li> The whole check starts over, with the newly modified record.</p>
 
@@ -1113,28 +1128,21 @@ take is to blank out fields, with the intent of allowing you to impute them late
 At this point in the process, we have checked every edit, and have a tally of every edit
 that failed for a given record, and know which fields are associated with the edit.</p>
 
-<p>We would like to blank out the value that is implicated in the most edits. Say that
-an edit regarding age and housing tenure failed. If age appears in a hundred edits and
-fails in six, while tenure appears in three edits but fails all three, we are inclined
-to believe that it is tenure (and perhaps some other variable in other age-related
-edits) that needs fixing. So we use a modified percentage of edits failed to determine
-which field to blank.</p>
+<p>Say that an edit regarding age and housing tenure failed. If age appears in a hundred
+edits and fails in six, while sex appears in three edits but fails all three, we
+are inclined to believe that it is sex (and perhaps some other variable in other
+age-related edits) that needs fixing. So we use a modified percentage of edits failed
+to determine which field to blank.</p>
 
-<p>The modifier is a user-specified salience, which you may set in the <tt>fields</tt> segment:</p>
+<p>The modifier is a user-specified salience, which set in the <tt>fields</tt> segment. In the
+example above, agep was given a salience of 0.9 and schl a salience of 2.1.</p>
 
-<div class="spec"><pre><code>fields {
-    age: [1.5] real
-    status: [2] cat married, single, divorced
-    tenure: cat own, rent
-}
-</code></pre></div>
+<p>Continuing the example
+above, the score for age is now 0.9 * 6/100 = .054. The corresponding score for sex
+is thus 2.1*3/3 = 1, so sex is still going to be blanked if there is a failing edit
+regarding sex and age.</p>
 
-<p>Here, tenure has the default salience of one, and age has a salience of 1.5. In the example
-above, the score for age is now 1.5 * 6/100 = .09. The corresponding score for tenure
-is thus 1*3/3 = 1, so tenure is still going to be blanked if there is a failing edit
-regarding tenure and age.</p>
-
-<p>After tenure is blanked, all later edits regarding tenure are considered resolved for this
+<p>After sex is blanked, all later edits regarding tenure are considered resolved for this
 record.</p>
 
 <h6>The follow-up imputation and the audit trail</h6><p>
@@ -1142,19 +1150,25 @@ At the end of the <tt>doEdit()</tt> step, we have a fill-in table named <tt>edit
 identical to the output from the imputation steps above, except that it may include some
 <tt>NULL</tt>s, indicating that a certain field in a certain record is to be blanked out.</p>
 
-<p>We could 
-use <tt>checkOutImpute</tt> to fold the list of changes into a new table and check that the
-edits have been made.</p>
+<p>We could use <tt>checkOutImpute</tt> to fold the list of changes into a new table and check
+that the edits have been made.</p>
 
-<p>Or, we can use the <tt>previous output table</tt> key in the imputation to have the imputation
+<p>Or, we can use the <tt>input fill table</tt> key in the imputation to have the imputation
 automatically pull the edits for us.</p>
 
+<p>Once the fill-ins are done, there will be blanks to be imputed. Note that the age/school
+imputation is done for the <tt>subset: agep >= 5</tt>, because schooling is naturally
+missing for children under five. We use the EM algorithm to simultaneously impute age and
+schooling, given the clear correlation between the two.</p>
+
 <p>In this setup, the edits and imputations have all been written to the same table, thus
-producing a complete audit trail. We can query for every entry with a given record ID to
-see what happened to the record over the course of things:</p>
+producing a complete audit trail.
+ID 3545501 had a SCHL level of 13, which would be marked as unlucky and erased.
+[Found via: <tt>teaTable("dc", cols="serialno*100+sporder", where="schl=13", limit=10)</tt>]</p>
 
-<div class="rcode"><pre><code>teaTable("ed_imp", where= "id=72023405")
+<p>We can query for every entry with a given record ID to see what happened to the record over the course of all processing:</p>
 
+<div class="rcode"><pre><code>teaTable("imp", where= "id=3545501")
 </code></pre></div>
 
 <p><a name="dasec"><h1>Disclosure avoidance</h1></a><p></p>
