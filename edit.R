@@ -8,8 +8,4 @@ dbGetQuery(teaenv$con, "update viewdc \
                     set schl=22 where agep between 10 and 14 and id%2 == 0")
 
 doEdit()
-
-checkOutImpute("viewdc", "vv", filltab="ed_imp")
-teaTable("vv", cols=c("agep", "schl"), where="agep<15 and schl>19")
-
 doMImpute()

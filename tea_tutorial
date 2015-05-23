@@ -208,7 +208,7 @@ to editing. You can have one tt(fields) section for every table, or several whic
 treated as a single unit.
 
 Spacing in the spec file is largely irrelevant, but each key:value pair must end with
-a newline (or the \} closing a group, though we think having the \} on its own line
+a newline (or the TeX(\)} closing a group, though we think having the TeX(\)} on its own line
 looks better). You will see some examples below where the expression is too long for
 one line, so lines are joined by ending the first line with a backslash.
 
@@ -302,6 +302,8 @@ Items(
     household number (here, tt(serialno)) and a household member number (here, tt(sporder)),
     so generate a unique ID by joining the two together.
 
+    ∙ The ID column must be numeric.
+
     ∙ Income in US dollars is given by the tt(PINCP) variable. Because it is often easier to
     work with log of income, generate a variable with log of income. The tt(+10) prevents
     log-of-zero errors.
@@ -373,11 +375,17 @@ If you do not specify the output from the recodes, then the output table name at
 end of a sequence of recodes is the input table name with tt(view) at the front. E.g.,
 tt(intab) $\to$ tt(viewintab).
 
-The imputation uses tt(filled) as the default output table name, but you are encouraged to
-use something else.
+Imputations and edits typically generate a table of fill-ins, which specify a certain
+value for a certain cell, e.g., for draw #2, the age for record 34187 should be 68. The
+tt(checkOutImpute) function will take a base table and a fill-in table and do the fill-ins
+to generate the completed or corrected table. Thus, edits and imputations may have a
+tt(fill table) field specifying the name of this output. The default  output table
+name is tt(filled), but you are encouraged to use something else.
+
+If you need to call in a fill table before a step happens, specify a tt(input fill table).
 
 The flow is thus typically a chain of steps, like input $\to$ recode $\to$ join with
-another table $\to$ impute. If you give an instruction to overwrite input every time,
+another table $\to$ edit $\to$ impute. If you give an instruction to overwrite input every time,
 then the recode, join, and impute steps will also rebuild their output tables. If
 you remove the input table (SQL: tt("drop table read_in_data")) then the table will
 be re-read and all subsequent steps rerun.  The exceptions: tt(checks) and tt(fields)
@@ -385,7 +393,6 @@ apply to all tables, the tt(input) segment takes an tt(input file), and the impu
 are always re-run.
 
 As above, the R variable tt(teaenv$active_tab) keeps track of the latest output table.
-
 
 Chapter(Imputation~~impsec) 
 
@@ -539,8 +546,8 @@ Citet(schafer:multi~~Schafer)) or in the sense of this example, where multiple m
 are used on the same data set.
 
 To facilitate this, imputations are not written to the tt(input table) specified in the
-tt(impute) section, but to a separate tt(output table).  For the tt(has_income) variable,
-the output table was tt(has_in), so after the imputation, we can have a look at that
+tt(impute) section, but to a separate tt(fill table).  For the tt(has_income) variable,
+the fill table was tt(has_in), so after the imputation, we can have a look at that
 table:
 
 RCode(
@@ -576,7 +583,7 @@ outdata <- teaTable("complete_tab")
 
 One imputation often follows another. Here, the model of income depends on the
 tt(has_income) variable, so we have to impute tt(has_income) first. Imputations are
-done in the sequence listed in the spec file. Use the tt(earlier output table) key in
+done in the sequence listed in the spec file. Use the tt(input fill table) key in
 an tt(impute) group to specify a table of fill-ins to be checked out before embarking
 on the imputation described by this group.
 
@@ -726,12 +733,13 @@ Items(
 
 The sample spec for this part of the tutorial will focus on age, income, and schooling,
 and the presumption that children do not have advanced degrees or significant incomes.
+Also, the number 13 is unlucky, so we disallow the schooling field from taking on the value 13.
 
 InSpec(edit)
 
-The tt(checks) section looks much like the sections above. One edit, that if age is
+The tt(checks) section looks much like the sections above. The first edit, that if age is
 less than thirteen and income is positive, has no associated mechanical edit, because we do
-not know whether a fault is in the age or the income field. The other edit has an
+not know whether a fault is in the age or the income field. The second has an
 associated mechanical edit, that if years of schooling look off, we should assign the
 U.S.-typical age minus five to schooling. As with most deterministic edits, this
 comes off as a somewhat strong assumption.
@@ -759,9 +767,9 @@ InR(edit)
 The tt(doEdit) call will fist handle the mechanical edits.
 When a record hits a failure with a mechanical edit:
 Items(
-    ∙ The change made by the edit is recorded in the output table.
+    ∙ The change made by the edit is recorded in the fill table.
     ∙ For the purposes of this record, this modification is exhausted. The edit (here, that
-        tt(schl>12 and agep$\leq$14) is an error) wil still be checked.
+        tt(schl$>$12 and agep$\leq$14) is an error) wil still be checked.
     ∙ The whole check starts over, with the newly modified record.
 )
 
@@ -776,29 +784,21 @@ Paragraph(The blanking procedure)
 At this point in the process, we have checked every edit, and have a tally of every edit
 that failed for a given record, and know which fields are associated with the edit.
 
-We would like to blank out the value that is implicated in the most edits. Say that
-an edit regarding age and housing tenure failed. If age appears in a hundred edits and
-fails in six, while tenure appears in three edits but fails all three, we are inclined
-to believe that it is tenure (and perhaps some other variable in other age-related
-edits) that needs fixing. So we use a modified percentage of edits failed to determine
-which field to blank.
+Say that an edit regarding age and housing tenure failed. If age appears in a hundred
+edits and fails in six, while sex appears in three edits but fails all three, we
+are inclined to believe that it is sex (and perhaps some other variable in other
+age-related edits) that needs fixing. So we use a modified percentage of edits failed
+to determine which field to blank.
 
-The modifier is a user-specified salience, which you may set in the tt(fields) segment:
+The modifier is a user-specified salience, which set in the tt(fields) segment. In the
+example above, agep was given a salience of 0.9 and schl a salience of 2.1.
 
-SpecCode(
-fields {
-    age: [1.5] real
-    status: [2] cat married, single, divorced
-    tenure: cat own, rent
-}
-)
+Continuing the example
+above, the score for age is now 0.9 * 6/100 = .054. The corresponding score for sex
+is thus 2.1*3/3 = 1, so sex is still going to be blanked if there is a failing edit
+regarding sex and age.
 
-Here, tenure has the default salience of one, and age has a salience of 1.5. In the example
-above, the score for age is now 1.5 * 6/100 = .09. The corresponding score for tenure
-is thus 1*3/3 = 1, so tenure is still going to be blanked if there is a failing edit
-regarding tenure and age.
-
-After tenure is blanked, all later edits regarding tenure are considered resolved for this
+After sex is blanked, all later edits regarding tenure are considered resolved for this
 record.
 
 Paragraph(The follow-up imputation and the audit trail)
@@ -806,22 +806,26 @@ At the end of the tt(doEdit()) step, we have a fill-in table named tt(edits), wh
 identical to the output from the imputation steps above, except that it may include some
 tt(NULL)s, indicating that a certain field in a certain record is to be blanked out.
 
-We could 
-use tt(checkOutImpute) to fold the list of changes into a new table and check that the
-edits have been made.
+We could use tt(checkOutImpute) to fold the list of changes into a new table and check
+that the edits have been made.
 
-Or, we can use the tt(previous output table) key in the imputation to have the imputation
+Or, we can use the tt(input fill table) key in the imputation to have the imputation
 automatically pull the edits for us.
 
+Once the fill-ins are done, there will be blanks to be imputed. Note that the age/school
+imputation is done for the tt(subset: agep >= 5), because schooling is naturally
+missing for children under five. We use the EM algorithm to simultaneously impute age and
+schooling, given the clear correlation between the two.
 
 In this setup, the edits and imputations have all been written to the same table, thus
-producing a complete audit trail. We can query for every entry with a given record ID to
-see what happened to the record over the course of things:
+producing a complete audit trail.
+ID 3545501 had a SCHL level of 13, which would be marked as unlucky and erased.
+[Found via: tt(teaTable("dc", cols="serialno*100+sporder", where="schl=13", limit=10))]
+
+We can query for every entry with a given record ID to see what happened to the record over the course of all processing:
 
 RCode(
-teaTable("ed_imp", where= "id=72023405")
-
-
+teaTable("imp", where= "id=3545501")
 )
 
 

@@ -1,4 +1,4 @@
-database: test.db
+database: recode.db
 id: id
 
 input {

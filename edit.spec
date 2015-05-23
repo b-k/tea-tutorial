@@ -7,9 +7,10 @@ input {
 }
 
 fields {
-    agep: real
+    agep: [.9] real
     PINCP: real
-    schl: int 0-24
+    schl: [2.1] int 0-24
+    sex: int 1, 2
 }
 
 recodes {
@@ -26,7 +27,7 @@ checks {
 
 edit {
     input table: viewdc
-    output table: ed_imp
+    fill table: imp
 }
 
 impute {
@@ -35,8 +36,16 @@ impute {
     categories {
         agep
     }
-    subset: agep>=5
     vars: sex
-    previous output table: ed_imp
-    output table: imp
+    input fill table: imp
+    fill table: imp
+}
+
+impute {
+    subset: agep>=5
+    input table: viewdc
+    method: em
+    vars: schl, agep
+    input fill table: imp
+    fill table: imp
 }

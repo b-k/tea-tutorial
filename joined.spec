@@ -62,7 +62,7 @@ impute {
     input table: dc_united
     method: em
     vars: income, PINCP, age_cat
-    output table: via_em
+    fill table: via_em
     subset: agep>15
     near misses: ok
 }
@@ -75,5 +75,5 @@ impute {
     method: hot deck
     vars: PINCP
     subset: agep>15
-    output table: via_hot_deck
+    fill table: via_hot_deck
 }
